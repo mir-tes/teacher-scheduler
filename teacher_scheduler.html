@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>教員スケジュール帳</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5;color:#1a1a1a;font-size:14px}
+.container{max-width:960px;margin:0 auto;padding:1rem}
+h1{font-size:18px;font-weight:500;margin-bottom:1rem;color:#1a1a1a}
+.status-bar{display:flex;align-items:center;gap:8px;font-size:13px;padding:8px 12px;border-radius:8px;margin-bottom:1rem}
+.status-bar.connected{background:#EAF3DE;color:#27500A}
+.status-bar.disconnected{background:#FCEBEB;color:#791F1F}
+.dot{width:8px;height:8px;border-radius:50%;background:currentColor;flex-shrink:0}
+.tabs{display:flex;gap:4px;margin-bottom:1.5rem;border-bottom:1px solid #e0e0e0;flex-wrap:wrap}
+.tab{padding:8px 16px;font-size:13px;cursor:pointer;border:none;background:none;color:#666;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab.active{color:#1a1a1a;font-weight:500;border-bottom:2px solid #1a1a1a}
+.sec{display:none}.sec.active{display:block}
+button{cursor:pointer;font-family:inherit}
+.nav-btn{background:none;border:1px solid #ccc;border-radius:8px;padding:4px 12px;font-size:13px;color:#1a1a1a}
+.nav-btn:hover{background:#f0f0f0}
+.add-btn{background:#1a1a1a;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:13px}
+.add-btn:hover{background:#333}
+.sync-btn{background:none;border:1px solid #ccc;border-radius:8px;padding:6px 12px;font-size:12px;color:#1a1a1a}
+.sync-btn:hover{background:#f0f0f0}
+.form-row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:1rem}
+.form-row label{font-size:12px;color:#666;display:block;margin-bottom:3px}
+.form-row input,.form-row select,
+.modal input,.modal select,.modal textarea{font-size:13px;padding:6px 10px;border:1px solid #ccc;border-radius:8px;background:#fff;color:#1a1a1a;font-family:inherit}
+.modal input,.modal select,.modal textarea{width:100%;margin-bottom:8px}
+.modal textarea{resize:vertical;min-height:70px}
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.cal-header h2{font-size:15px;font-weight:500}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal-dow{font-size:11px;color:#888;text-align:center;padding:4px 0}
+.cal-cell{min-height:72px;padding:4px;border:1px solid #e8e8e8;border-radius:8px;background:#fff;font-size:11px}
+.cal-cell.today{border:2px solid #378ADD}
+.cal-cell.other .dn{color:#bbb}
+.dn{font-size:12px;font-weight:500;margin-bottom:2px}
+.ev{border-radius:3px;padding:1px 4px;margin-bottom:1px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.ev-lesson{background:#E6F1FB;color:#0C447C}
+.ev-event{background:#EAF3DE;color:#27500A}
+.ev-school{background:#EEEDFE;color:#3C3489}
+.ev-deadline{background:#FCEBEB;color:#791F1F}
+.legend{display:flex;gap:10px;margin-bottom:1rem;flex-wrap:wrap}
+.li{display:flex;align-items:center;gap:4px;font-size:11px;color:#666}
+.ld{width:10px;height:10px;border-radius:2px}
+.tt-grid{display:grid;grid-template-columns:60px repeat(5,1fr);gap:3px}
+.tt-head{font-size:12px;font-weight:500;text-align:center;padding:6px;background:#f0f0f0;border-radius:8px;color:#555}
+.tt-period{font-size:11px;text-align:center;padding:5px;background:#f0f0f0;border-radius:8px;color:#555;line-height:1.4}
+.tt-cell{min-height:58px;border:1px solid #e8e8e8;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;cursor:pointer;text-align:center;padding:4px;background:#fff;color:#aaa}
+.tt-cell:hover{background:#f9f9f9}
+.tt-cell.y1{background:#E6EAF8;color:#3C3489}
+.tt-cell.y2{background:#E6F1FB;color:#0C447C}
+.tt-cell.y3{background:#FCEBEB;color:#791F1F}
+.tt-subj{font-weight:500;font-size:12px}
+.tt-room{font-size:10px;margin-top:1px;opacity:0.8}
+.week-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.week-nav h3{font-size:14px;font-weight:500}
+.week-outer{overflow-x:auto}
+.wk-head-wrap{display:grid;grid-template-columns:52px repeat(5,1fr);gap:3px;min-width:540px;margin-bottom:3px}
+.week-grid{display:grid;grid-template-columns:52px repeat(5,1fr);gap:3px;min-width:540px}
+.wk-blank{height:32px}
+.wk-head{border-radius:8px;overflow:hidden;border:1px solid #e8e8e8}
+.wk-head.is-today .wk-head-top{background:#E6F1FB;color:#0C447C}
+.wk-head-top{font-size:11px;font-weight:500;padding:5px 3px;background:#f0f0f0;color:#555;text-align:center;line-height:1.4}
+.wk-head-memo{padding:3px;background:#fff;min-height:36px}
+.wk-memo-text{font-size:10px;color:#555;line-height:1.4;cursor:pointer;min-height:28px;padding:2px;white-space:pre-wrap;border-radius:3px}
+.wk-memo-text:hover{background:#f5f5f5}
+.wk-memo-empty{font-size:10px;color:#bbb;cursor:pointer;padding:2px;min-height:28px;display:flex;align-items:center;justify-content:center;border-radius:3px}
+.wk-memo-empty:hover{background:#f5f5f5}
+.wk-period{font-size:10px;text-align:center;padding:4px 2px;background:#f0f0f0;border-radius:8px;color:#555;line-height:1.3}
+.wk-cell{min-height:56px;border:1px solid #e8e8e8;border-radius:8px;padding:4px;font-size:10px;cursor:pointer;background:#fff;position:relative}
+.wk-cell:hover{background:#f9f9f9}
+.wk-cell.y1{background:#E6EAF8}.wk-cell.y1 .wc-subj{color:#3C3489}
+.wk-cell.y2{background:#E6F1FB}.wk-cell.y2 .wc-subj{color:#0C447C}
+.wk-cell.y3{background:#FCEBEB}.wk-cell.y3 .wc-subj{color:#791F1F}
+.wk-cell.ev-event{background:#EAF3DE}.wk-cell.ev-event .wc-subj{color:#27500A}
+.wk-cell.ev-school{background:#EEEDFE}.wk-cell.ev-school .wc-subj{color:#3C3489}
+.wk-cell.modified::after{content:'';position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;background:#E24B4A}
+.wc-subj{font-weight:500;font-size:11px}
+.wc-room{font-size:10px;opacity:0.75;margin-top:1px}
+.wc-note{font-size:10px;opacity:0.65;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dl-list{display:flex;flex-direction:column;gap:8px}
+.dl-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid #e8e8e8;border-radius:8px;background:#fff}
+.dl-item.done{opacity:0.45}
+.dl-item.from-tasks{border-left:3px solid #378ADD}
+.dl-item input[type=checkbox]{width:15px;height:15px;cursor:pointer;flex-shrink:0}
+.dl-info{flex:1;min-width:0}
+.dl-title{font-size:13px;font-weight:500}
+.dl-meta{font-size:11px;color:#888;margin-top:2px}
+.dl-days{font-size:11px;font-weight:500;text-align:right;white-space:nowrap}
+.over{color:#A32D2D}.ok{color:#3B6D11}.soon{color:#854F0B}
+.del-btn{background:none;border:none;font-size:14px;color:#aaa;flex-shrink:0;padding:2px 4px}
+.del-btn:hover{color:#666}
+.tasks-badge{font-size:10px;padding:1px 6px;background:#E6F1FB;color:#0C447C;border-radius:3px;margin-left:4px}
+.grade-legend{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center}
+.g-tag{font-size:11px;padding:2px 8px;border-radius:4px}
+.g1{background:#E6EAF8;color:#3C3489}.g2{background:#E6F1FB;color:#0C447C}.g3{background:#FCEBEB;color:#791F1F}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:100;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:#fff;border-radius:12px;padding:1.5rem;width:320px;box-shadow:0 4px 24px rgba(0,0,0,0.15)}
+.modal h3{font-size:15px;font-weight:500;margin-bottom:14px}
+.modal label{font-size:12px;color:#666;display:block;margin-bottom:3px}
+.modal-btns{display:flex;gap:8px;margin-top:8px}
+.modal-btns button{flex:1;padding:8px;border-radius:8px;font-size:13px}
+.btn-c{background:none;border:1px solid #ccc;color:#666}
+.btn-c:hover{background:#f0f0f0}
+.btn-s{background:#1a1a1a;color:#fff;border:none}
+.btn-s:hover{background:#333}
+.btn-clr{background:none;border:1px solid #ffaaaa;color:#A32D2D}
+.btn-clr:hover{background:#fff5f5}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>教員スケジュール帳</h1>
+
+<div id="auth-status" class="status-bar disconnected">
+  <div class="dot"></div>
+  <span id="auth-label">Google Calendar / Tasks に未接続</span>
+  <button class="sync-btn" style="margin-left:auto" onclick="signIn()">Googleでログイン</button>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('cal')">カレンダー</button>
+  <button class="tab" onclick="showTab('tt')">時間割（基本）</button>
+  <button class="tab" onclick="showTab('week')">週間スケジュール</button>
+  <button class="tab" onclick="showTab('dl')">提出物・締切</button>
+</div>
+
+<!-- カレンダー -->
+<div id="sec-cal" class="sec active">
+  <div class="legend">
+    <div class="li"><div class="ld" style="background:#B5D4F4"></div>授業</div>
+    <div class="li"><div class="ld" style="background:#C0DD97"></div>行事</div>
+    <div class="li"><div class="ld" style="background:#CECBF6"></div>校務</div>
+    <div class="li"><div class="ld" style="background:#F7C1C1"></div>締切</div>
+  </div>
+  <div class="cal-header">
+    <button class="nav-btn" onclick="changeMonth(-1)">&#8249;</button>
+    <h2 id="cal-title"></h2>
+    <div style="display:flex;gap:6px">
+      <button class="sync-btn" onclick="syncFromGCal()">GCal取得</button>
+      <button class="nav-btn" onclick="changeMonth(1)">&#8250;</button>
+    </div>
+  </div>
+  <div class="cal-grid" id="cal-grid">
+    <div class="cal-dow">日</div><div class="cal-dow">月</div><div class="cal-dow">火</div>
+    <div class="cal-dow">水</div><div class="cal-dow">木</div><div class="cal-dow">金</div><div class="cal-dow">土</div>
+  </div>
+  <div class="form-row">
+    <div><label>日付</label><input type="date" id="ev-date"></div>
+    <div><label>タイトル</label><input type="text" id="ev-title" placeholder="例: 定期考査" style="width:140px"></div>
+    <div><label>種別</label>
+      <select id="ev-type">
+        <option value="lesson">授業</option>
+        <option value="event">行事</option>
+        <option value="school">校務</option>
+        <option value="deadline">締切</option>
+      </select>
+    </div>
+    <div><button class="add-btn" onclick="addEvent()">追加</button></div>
+    <div><button class="sync-btn" onclick="pushToGCal()">GCalに送信</button></div>
+  </div>
+</div>
+
+<!-- 時間割 -->
+<div id="sec-tt" class="sec">
+  <div class="grade-legend">
+    <span class="g-tag g1">1年 紺</span>
+    <span class="g-tag g2">2年 青</span>
+    <span class="g-tag g3">3年 赤</span>
+    <span style="font-size:11px;color:#aaa;margin-left:4px">セルをクリックして編集</span>
+  </div>
+  <div class="tt-grid" id="tt-grid"></div>
+</div>
+
+<!-- 週間スケジュール -->
+<div id="sec-week" class="sec">
+  <div class="week-nav">
+    <button class="nav-btn" onclick="changeWeek(-1)">&#8249;</button>
+    <h3 id="week-title"></h3>
+    <div style="display:flex;gap:6px">
+      <button class="sync-btn" onclick="syncWeekFromGCal()">GCal取得</button>
+      <button class="sync-btn" onclick="resetWeekOverrides()">基本に戻す</button>
+      <button class="nav-btn" onclick="changeWeek(1)">&#8250;</button>
+    </div>
+  </div>
+  <p style="font-size:11px;color:#888;margin-bottom:6px">日付下のメモ欄をクリックして予定・時間変更を記入。赤丸は基本時間割からの変更。</p>
+  <div class="week-outer">
+    <div class="wk-head-wrap" id="wk-head-wrap"></div>
+    <div class="week-grid" id="week-grid"></div>
+  </div>
+</div>
+
+<!-- 提出物・締切 -->
+<div id="sec-dl" class="sec">
+  <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
+    <button class="sync-btn" onclick="syncFromTasks()">Google ToDoから同期</button>
+    <span style="font-size:11px;color:#888">青枠 = ToDoリストから取得</span>
+  </div>
+  <div class="form-row" style="margin-top:0;margin-bottom:1rem">
+    <div><label>タスク名</label><input type="text" id="dl-title" placeholder="例: 1A 小テスト採点" style="width:180px"></div>
+    <div><label>科目・クラス</label><input type="text" id="dl-class" placeholder="数学I / 1A" style="width:130px"></div>
+    <div><label>締切日</label><input type="date" id="dl-date"></div>
+    <div><button class="add-btn" onclick="addDeadline()">追加</button></div>
+  </div>
+  <div class="dl-list" id="dl-list"></div>
+</div>
+</div>
+
+<!-- 時間割編集モーダル -->
+<div class="overlay" id="tt-modal">
+  <div class="modal">
+    <h3 id="tt-modal-title">時間割編集</h3>
+    <label>学年</label>
+    <select id="tm-grade">
+      <option value="">なし</option>
+      <option value="y1">1年（紺）</option>
+      <option value="y2">2年（青）</option>
+      <option value="y3">3年（赤）</option>
+    </select>
+    <label>科目名</label>
+    <input type="text" id="tm-subj" placeholder="例: 数学I">
+    <label>教室</label>
+    <input type="text" id="tm-room" placeholder="例: 1-A教室">
+    <div class="modal-btns">
+      <button class="btn-c" onclick="closeTTModal()">キャンセル</button>
+      <button class="btn-s" onclick="saveTTCell()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 週間セル編集モーダル -->
+<div class="overlay" id="wk-modal">
+  <div class="modal">
+    <h3 id="wk-modal-title">スケジュール編集</h3>
+    <label>種別</label>
+    <select id="wm-type" onchange="toggleWkFields()">
+      <option value="lesson">授業</option>
+      <option value="event">行事</option>
+      <option value="school">校務</option>
+      <option value="empty">空きコマ</option>
+    </select>
+    <div id="wm-lesson-fields">
+      <label>学年</label>
+      <select id="wm-grade">
+        <option value="">なし</option>
+        <option value="y1">1年（紺）</option>
+        <option value="y2">2年（青）</option>
+        <option value="y3">3年（赤）</option>
+      </select>
+      <label>科目名</label>
+      <input type="text" id="wm-subj" placeholder="例: 数学I">
+      <label>教室</label>
+      <input type="text" id="wm-room" placeholder="例: 1-A教室">
+    </div>
+    <div id="wm-event-fields" style="display:none">
+      <label>内容</label>
+      <input type="text" id="wm-evtitle" placeholder="例: 文化祭準備">
+      <label>場所</label>
+      <input type="text" id="wm-evplace" placeholder="例: 体育館">
+      <label>備考</label>
+      <textarea id="wm-evnote" placeholder="例: 全学年参加"></textarea>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-clr" onclick="clearWkCell()">クリア</button>
+      <button class="btn-c" onclick="closeWkModal()">キャンセル</button>
+      <button class="btn-s" onclick="saveWkCell()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- メモ編集モーダル -->
+<div class="overlay" id="memo-modal">
+  <div class="modal">
+    <h3 id="memo-modal-title">その日のメモ・時間変更</h3>
+    <label>時間変更・特記事項</label>
+    <textarea id="memo-text" placeholder="例：短縮授業（各45分）&#10;1限 8:30〜9:15&#10;全学年 体育館集合10:00" style="min-height:100px"></textarea>
+    <div class="modal-btns">
+      <button class="btn-clr" onclick="clearMemo()">クリア</button>
+      <button class="btn-c" onclick="closeMemoModal()">キャンセル</button>
+      <button class="btn-s" onclick="saveMemo()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const CLIENT_ID = '116307121637-ev8bq1td5q8v6v11f5dtmo9u53nqtft2.apps.googleusercontent.com';
+const SCOPES = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks';
+let accessToken = null;
+let events = JSON.parse(localStorage.getItem('sch_ev') || '[]');
+let timetable = JSON.parse(localStorage.getItem('sch_tt') || '{}');
+let deadlines = JSON.parse(localStorage.getItem('sch_dl') || '[]');
+let weekOverrides = JSON.parse(localStorage.getItem('sch_wov') || '{}');
+let dayMemos = JSON.parse(localStorage.getItem('sch_memo') || '{}');
+let cur = new Date(), weekBase = getMonday(new Date());
+let editTTKey = null, editWkKey = null, editMemoKey = null;
+const PERIODS = [{l:'1限',t:'8:45'},{l:'2限',t:'9:40'},{l:'3限',t:'10:35'},{l:'4限',t:'11:30'},{l:'5限',t:'13:20'},{l:'6限',t:'14:15'}];
+const WDAYS = ['月','火','水','木','金'];
+
+function save() {
+  localStorage.setItem('sch_ev', JSON.stringify(events));
+  localStorage.setItem('sch_tt', JSON.stringify(timetable));
+  localStorage.setItem('sch_dl', JSON.stringify(deadlines));
+  localStorage.setItem('sch_wov', JSON.stringify(weekOverrides));
+  localStorage.setItem('sch_memo', JSON.stringify(dayMemos));
+}
+function fmt(d) { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function getMonday(d) { const m = new Date(d); const day = m.getDay(); m.setDate(m.getDate()-day+(day===0?-6:1)); m.setHours(0,0,0,0); return m; }
+
+function loadGapi() {
+  return new Promise(res => {
+    if (window.gapi) { res(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://apis.google.com/js/api.js';
+    s.onload = () => gapi.load('client', () => gapi.client.init({}).then(() => res()));
+    document.head.appendChild(s);
+  });
+}
+function loadGis() {
+  return new Promise(res => {
+    if (window.google && google.accounts) { res(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client';
+    s.onload = () => res();
+    document.head.appendChild(s);
+  });
+}
+async function signIn() {
+  try {
+    await loadGapi(); await loadGis();
+    const tc = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID, scope: SCOPES,
+      callback: (r) => {
+        if (r.error) { alert('認証エラー: ' + r.error); return; }
+        accessToken = r.access_token;
+        gapi.client.setToken({ access_token: accessToken });
+        setConnected(true);
+      }
+    });
+    tc.requestAccessToken();
+  } catch(e) { alert('Google認証に失敗しました。\nポップアップブロックを解除してください。\n\n' + e.message); }
+}
+function signOut() {
+  if (accessToken && window.google) google.accounts.oauth2.revoke(accessToken);
+  accessToken = null; setConnected(false);
+}
+function setConnected(ok) {
+  const bar = document.getElementById('auth-status');
+  bar.className = 'status-bar ' + (ok ? 'connected' : 'disconnected');
+  document.getElementById('auth-label').textContent = ok ? 'Google Calendar / Tasks に接続中' : 'Google Calendar / Tasks に未接続';
+  const btn = bar.querySelector('button');
+  btn.textContent = ok ? 'ログアウト' : 'Googleでログイン';
+  btn.onclick = ok ? signOut : signIn;
+}
+
+async function pushToGCal() {
+  if (!accessToken) { alert('先にGoogleでログインしてください'); return; }
+  if (!events.length) { alert('送信するイベントがありません'); return; }
+  const tm = {lesson:'授業',event:'行事',school:'校務',deadline:'締切'};
+  let ok = 0, fail = 0;
+  for (const ev of events) {
+    try {
+      await gapi.client.request({ path:'https://www.googleapis.com/calendar/v3/calendars/primary/events', method:'POST',
+        body: JSON.stringify({ summary: '['+tm[ev.type]+'] '+ev.title, start:{date:ev.date}, end:{date:ev.date} }) });
+      ok++;
+    } catch(e) { fail++; }
+  }
+  alert('送信完了\n成功: '+ok+'件'+(fail?'\n失敗: '+fail+'件':''));
+}
+
+async function syncFromGCal() {
+  if (!accessToken) { alert('先にGoogleでログインしてください'); return; }
+  const y = cur.getFullYear(), m = cur.getMonth();
+  try {
+    const r = await gapi.client.request({ path:'https://www.googleapis.com/calendar/v3/calendars/primary/events',
+      params:{timeMin:new Date(y,m,1).toISOString(),timeMax:new Date(y,m+1,0,23,59,59).toISOString(),singleEvents:true,orderBy:'startTime',maxResults:100} });
+    const items = r.result.items || [];
+    items.forEach(item => {
+      const date = (item.start.date||item.start.dateTime||'').substring(0,10); if (!date) return;
+      const title = item.summary || '';
+      let type = 'event';
+      if (title.startsWith('[授業]')) type='lesson'; else if (title.startsWith('[校務]')) type='school'; else if (title.startsWith('[締切]')) type='deadline';
+      const clean = title.replace(/^\[(授業|行事|校務|締切)\]\s*/,'');
+      if (!events.find(e => e.date===date && e.title===clean)) events.push({id:Date.now()+Math.random(),date,title:clean,type});
+    });
+    save(); renderCal(); alert('カレンダー取得完了: '+items.length+'件');
+  } catch(e) { alert('取得エラー: '+e.message); }
+}
+
+async function syncWeekFromGCal() {
+  if (!accessToken) { alert('先にGoogleでログインしてください'); return; }
+  const tEnd = new Date(weekBase); tEnd.setDate(weekBase.getDate()+5);
+  try {
+    const r = await gapi.client.request({ path:'https://www.googleapis.com/calendar/v3/calendars/primary/events',
+      params:{timeMin:new Date(weekBase).toISOString(),timeMax:tEnd.toISOString(),singleEvents:true,orderBy:'startTime',maxResults:50} });
+    const items = r.result.items || [];
+    items.forEach(item => {
+      const date = (item.start.date||item.start.dateTime||'').substring(0,10); if (!date) return;
+      const memo = item.summary + (item.description ? '\n'+item.description : '');
+      if (!dayMemos[date]) dayMemos[date] = memo;
+    });
+    save(); renderWeek(); alert('週間GCal取得完了: '+items.length+'件');
+  } catch(e) { alert('取得エラー: '+e.message); }
+}
+
+async function syncFromTasks() {
+  if (!accessToken) { alert('先にGoogleでログインしてください'); return; }
+  try {
+    const listsResp = await gapi.client.request({ path:'https://tasks.googleapis.com/tasks/v1/users/@me/lists', params:{maxResults:20} });
+    const lists = listsResp.result.items || [];
+    if (!lists.length) { alert('ToDoリストが見つかりませんでした'); return; }
+    let added = 0;
+    for (const list of lists) {
+      const tasksResp = await gapi.client.request({ path:'https://tasks.googleapis.com/tasks/v1/lists/'+list.id+'/tasks', params:{maxResults:50,showCompleted:false} });
+      const tasks = tasksResp.result.items || [];
+      tasks.forEach(task => {
+        const title = task.title; if (!title) return;
+        const date = task.due ? task.due.substring(0,10) : '';
+        if (!deadlines.find(d => d.taskId===task.id)) {
+          deadlines.push({id:Date.now()+Math.random(),taskId:task.id,title,cls:list.title,date,done:task.status==='completed',fromTasks:true});
+          added++;
+        }
+      });
+    }
+    save(); renderDL(); alert('Google ToDoから'+added+'件を取得しました');
+  } catch(e) { alert('Tasks取得エラー: '+e.message); }
+}
+
+function showTab(t) {
+  document.querySelectorAll('.tab').forEach((b,i) => b.classList.toggle('active', ['cal','tt','week','dl'][i]===t));
+  document.querySelectorAll('.sec').forEach(s => s.classList.remove('active'));
+  document.getElementById('sec-'+t).classList.add('active');
+  if (t==='tt') renderTT(); if (t==='week') renderWeek(); if (t==='dl') renderDL();
+}
+
+function renderCal() {
+  const y = cur.getFullYear(), m = cur.getMonth();
+  document.getElementById('cal-title').textContent = y+'年'+(m+1)+'月';
+  const grid = document.getElementById('cal-grid');
+  grid.querySelectorAll('.cal-cell').forEach(c => c.remove());
+  const first = new Date(y,m,1).getDay(), last = new Date(y,m+1,0).getDate(), today = new Date();
+  const addC = (date, other) => {
+    const cell = document.createElement('div'); cell.className = 'cal-cell'+(other?' other':'');
+    if (date.toDateString()===today.toDateString()) cell.classList.add('today');
+    const dn = document.createElement('div'); dn.className='dn'; dn.textContent=date.getDate(); cell.appendChild(dn);
+    events.filter(e=>e.date===fmt(date)).forEach(e=>{const d=document.createElement('div');d.className='ev ev-'+e.type;d.textContent=e.title;cell.appendChild(d);});
+    grid.appendChild(cell);
+  };
+  for (let i=0;i<first;i++) addC(new Date(y,m,0-first+i+2),true);
+  for (let d=1;d<=last;d++) addC(new Date(y,m,d),false);
+  const rem = (7-((first+last)%7))%7;
+  for (let i=1;i<=rem;i++) addC(new Date(y,m+1,i),true);
+}
+function addEvent() {
+  const date=document.getElementById('ev-date').value, title=document.getElementById('ev-title').value.trim(), type=document.getElementById('ev-type').value;
+  if (!date||!title) return;
+  events.push({id:Date.now(),date,title,type}); save(); document.getElementById('ev-title').value=''; renderCal();
+}
+function changeMonth(d) { cur.setMonth(cur.getMonth()+d); renderCal(); }
+
+function renderTT() {
+  const g = document.getElementById('tt-grid'); g.innerHTML='';
+  const blank = document.createElement('div'); blank.style.cssText='height:32px'; g.appendChild(blank);
+  WDAYS.forEach(d => { const h=document.createElement('div');h.className='tt-head';h.textContent=d;g.appendChild(h); });
+  PERIODS.forEach((p,pi) => {
+    const ph=document.createElement('div');ph.className='tt-period';ph.innerHTML=p.l+'<br><small>'+p.t+'</small>';g.appendChild(ph);
+    WDAYS.forEach((_,di) => {
+      const key=di+'-'+pi, data=timetable[key]||{};
+      const cell=document.createElement('div'); cell.className='tt-cell'+(data.grade?' '+data.grade:'');
+      cell.innerHTML=data.subj?'<div class="tt-subj">'+data.subj+'</div>'+(data.room?'<div class="tt-room">'+data.room+'</div>':''):'<span style="font-size:18px;opacity:0.2">+</span>';
+      cell.onclick=()=>openTTModal(key,WDAYS[di]+'曜 '+(pi+1)+'限',data);
+      g.appendChild(cell);
+    });
+  });
+}
+function openTTModal(key,label,data) {
+  editTTKey=key;
+  document.getElementById('tt-modal-title').textContent='時間割編集（'+label+'）';
+  document.getElementById('tm-grade').value=data.grade||'';
+  document.getElementById('tm-subj').value=data.subj||'';
+  document.getElementById('tm-room').value=data.room||'';
+  document.getElementById('tt-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('tm-subj').focus(),50);
+}
+function closeTTModal() { document.getElementById('tt-modal').classList.remove('open'); editTTKey=null; }
+function saveTTCell() {
+  if (!editTTKey) return;
+  const grade=document.getElementById('tm-grade').value, subj=document.getElementById('tm-subj').value.trim(), room=document.getElementById('tm-room').value.trim();
+  if (subj) timetable[editTTKey]={grade,subj,room}; else delete timetable[editTTKey];
+  save(); closeTTModal(); renderTT();
+}
+document.getElementById('tm-subj').addEventListener('keydown', e=>{ if(e.key==='Enter') saveTTCell(); });
+
+function getWkKey(dateStr,pi) { return dateStr+'|'+pi; }
+function getCellData(dateStr,di,pi) {
+  const wkKey=getWkKey(dateStr,pi);
+  if (weekOverrides[wkKey]!==undefined) return {...weekOverrides[wkKey],modified:true};
+  const base=timetable[di+'-'+pi];
+  return base ? {...base,type:'lesson',modified:false} : {modified:false};
+}
+
+function renderWeek() {
+  const hw=document.getElementById('wk-head-wrap'); hw.innerHTML='';
+  const g=document.getElementById('week-grid'); g.innerHTML='';
+  const wDates=[];
+  for (let i=0;i<5;i++) { const d=new Date(weekBase);d.setDate(weekBase.getDate()+i);wDates.push(d); }
+  const d0=wDates[0],d4=wDates[4];
+  document.getElementById('week-title').textContent=(d0.getMonth()+1)+'/'+d0.getDate()+' 〜 '+(d4.getMonth()+1)+'/'+d4.getDate();
+  const today=new Date();
+  const blank=document.createElement('div');blank.className='wk-blank';hw.appendChild(blank);
+  wDates.forEach((d,di) => {
+    const dateStr=fmt(d), isToday=d.toDateString()===today.toDateString();
+    const wrap=document.createElement('div');wrap.className='wk-head'+(isToday?' is-today':'');
+    const top=document.createElement('div');top.className='wk-head-top';
+    top.innerHTML=WDAYS[di]+'<br><span style="font-size:10px">'+(d.getMonth()+1)+'/'+(d.getDate())+'</span>';
+    const memoArea=document.createElement('div');memoArea.className='wk-head-memo';
+    const memo=dayMemos[dateStr];
+    if (memo) {
+      const mt=document.createElement('div');mt.className='wk-memo-text';mt.textContent=memo;
+      mt.onclick=()=>openMemoModal(dateStr,WDAYS[di]+' '+(d.getMonth()+1)+'/'+(d.getDate()));
+      memoArea.appendChild(mt);
+    } else {
+      const me=document.createElement('div');me.className='wk-memo-empty';me.textContent='+ メモ';
+      me.onclick=()=>openMemoModal(dateStr,WDAYS[di]+' '+(d.getMonth()+1)+'/'+(d.getDate()));
+      memoArea.appendChild(me);
+    }
+    wrap.appendChild(top);wrap.appendChild(memoArea);hw.appendChild(wrap);
+  });
+  PERIODS.forEach((p,pi) => {
+    const ph=document.createElement('div');ph.className='wk-period';ph.innerHTML=p.l+'<br><small>'+p.t+'</small>';g.appendChild(ph);
+    wDates.forEach((d,di) => {
+      const dateStr=fmt(d), data=getCellData(dateStr,di,pi);
+      const cell=document.createElement('div');
+      let cls='wk-cell';
+      if (data.type==='event') cls+=' ev-event'; else if (data.type==='school') cls+=' ev-school'; else if (data.grade) cls+=' '+data.grade;
+      if (data.modified) cls+=' modified';
+      cell.className=cls;
+      if (data.subj) cell.innerHTML='<div class="wc-subj">'+data.subj+'</div>'+(data.room?'<div class="wc-room">'+data.room+'</div>':'');
+      else if (data.evtitle) cell.innerHTML='<div class="wc-subj">'+data.evtitle+'</div>'+(data.evplace?'<div class="wc-room">'+data.evplace+'</div>':'')+(data.evnote?'<div class="wc-note">'+data.evnote+'</div>':'');
+      cell.onclick=()=>openWkModal(dateStr,di,pi,data);
+      g.appendChild(cell);
+    });
+  });
+}
+function openMemoModal(dateStr,label) {
+  editMemoKey=dateStr;
+  document.getElementById('memo-modal-title').textContent=label+' のメモ・時間変更';
+  document.getElementById('memo-text').value=dayMemos[dateStr]||'';
+  document.getElementById('memo-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('memo-text').focus(),50);
+}
+function closeMemoModal() { document.getElementById('memo-modal').classList.remove('open'); editMemoKey=null; }
+function saveMemo() {
+  if (!editMemoKey) return;
+  const val=document.getElementById('memo-text').value.trim();
+  if (val) dayMemos[editMemoKey]=val; else delete dayMemos[editMemoKey];
+  save(); closeMemoModal(); renderWeek();
+}
+function clearMemo() { if (!editMemoKey) return; delete dayMemos[editMemoKey]; save(); closeMemoModal(); renderWeek(); }
+
+function openWkModal(dateStr,di,pi,data) {
+  editWkKey=getWkKey(dateStr,pi);
+  const d=new Date(dateStr+'T00:00:00');
+  document.getElementById('wk-modal-title').textContent=WDAYS[di]+'曜 '+(pi+1)+'限（'+(d.getMonth()+1)+'/'+(d.getDate())+'）';
+  const type=data.type||'lesson';
+  document.getElementById('wm-type').value=type;
+  document.getElementById('wm-grade').value=data.grade||'';
+  document.getElementById('wm-subj').value=data.subj||'';
+  document.getElementById('wm-room').value=data.room||'';
+  document.getElementById('wm-evtitle').value=data.evtitle||'';
+  document.getElementById('wm-evplace').value=data.evplace||'';
+  document.getElementById('wm-evnote').value=data.evnote||'';
+  toggleWkFields();
+  document.getElementById('wk-modal').classList.add('open');
+}
+function closeWkModal() { document.getElementById('wk-modal').classList.remove('open'); editWkKey=null; }
+function toggleWkFields() {
+  const t=document.getElementById('wm-type').value;
+  document.getElementById('wm-lesson-fields').style.display=t==='lesson'?'block':'none';
+  document.getElementById('wm-event-fields').style.display=(t==='event'||t==='school')?'block':'none';
+}
+function saveWkCell() {
+  if (!editWkKey) return;
+  const type=document.getElementById('wm-type').value;
+  if (type==='empty') { weekOverrides[editWkKey]={type:'empty'}; }
+  else if (type==='lesson') { weekOverrides[editWkKey]={type:'lesson',grade:document.getElementById('wm-grade').value,subj:document.getElementById('wm-subj').value.trim(),room:document.getElementById('wm-room').value.trim()}; }
+  else { weekOverrides[editWkKey]={type,evtitle:document.getElementById('wm-evtitle').value.trim(),evplace:document.getElementById('wm-evplace').value.trim(),evnote:document.getElementById('wm-evnote').value.trim()}; }
+  save(); closeWkModal(); renderWeek();
+}
+function clearWkCell() { if (!editWkKey) return; delete weekOverrides[editWkKey]; save(); closeWkModal(); renderWeek(); }
+function resetWeekOverrides() {
+  if (!confirm('この週の変更をすべて基本時間割に戻しますか？')) return;
+  const wDates=[];
+  for (let i=0;i<5;i++) { const d=new Date(weekBase);d.setDate(weekBase.getDate()+i);wDates.push(fmt(d)); }
+  wDates.forEach(dateStr=>PERIODS.forEach((_,pi)=>delete weekOverrides[getWkKey(dateStr,pi)]));
+  save(); renderWeek();
+}
+function changeWeek(d) { weekBase.setDate(weekBase.getDate()+d*7); renderWeek(); }
+
+function renderDL() {
+  const list=document.getElementById('dl-list'); list.innerHTML='';
+  const today=new Date(); today.setHours(0,0,0,0);
+  [...deadlines].sort((a,b)=>a.date<b.date?-1:1).forEach(dl => {
+    const dd=dl.date?new Date(dl.date):null;
+    const diff=dd?Math.round((dd-today)/86400000):null;
+    const dStr=diff===null?'日付なし':diff<0?'期限切れ':diff===0?'今日':diff+'日後';
+    const cls=diff===null?'ok':diff<0?'over':diff<=3?'soon':'ok';
+    const item=document.createElement('div'); item.className='dl-item'+(dl.done?' done':'')+(dl.fromTasks?' from-tasks':'');
+    item.innerHTML=`<input type="checkbox" ${dl.done?'checked':''} onchange="toggleDL(${dl.id})"><div class="dl-info"><div class="dl-title">${dl.title}${dl.fromTasks?'<span class="tasks-badge">ToDo</span>':''}</div><div class="dl-meta">${dl.cls||''}</div></div><div class="dl-days ${cls}">${dl.date||''}<br>${dStr}</div><button class="del-btn" onclick="deleteDL(${dl.id})">✕</button>`;
+    list.appendChild(item);
+  });
+  if (!deadlines.length) list.innerHTML='<p style="font-size:13px;color:#888;padding:1rem 0">登録された提出物はありません</p>';
+}
+function addDeadline() {
+  const title=document.getElementById('dl-title').value.trim(), cls=document.getElementById('dl-class').value.trim(), date=document.getElementById('dl-date').value;
+  if (!title) return;
+  deadlines.push({id:Date.now(),title,cls,date,done:false}); save();
+  document.getElementById('dl-title').value=''; document.getElementById('dl-class').value=''; renderDL();
+}
+function toggleDL(id) { const d=deadlines.find(x=>x.id===id); if(d){d.done=!d.done;save();renderDL();} }
+function deleteDL(id) { deadlines=deadlines.filter(x=>x.id!==id); save(); renderDL(); }
+
+document.getElementById('tt-modal').addEventListener('click',function(e){if(e.target===this)closeTTModal();});
+document.getElementById('wk-modal').addEventListener('click',function(e){if(e.target===this)closeWkModal();});
+document.getElementById('memo-modal').addEventListener('click',function(e){if(e.target===this)closeMemoModal();});
+
+const td=new Date();
+document.getElementById('ev-date').value=fmt(td);
+document.getElementById('dl-date').value=fmt(td);
+renderCal();
+</script>
+</body>
+</html>

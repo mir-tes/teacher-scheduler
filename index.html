@@ -79,6 +79,7 @@ button{cursor:pointer;font-family:inherit}
 .wk-cell.ev-event{background:#EAF3DE}.wk-cell.ev-event .wc-subj{color:#27500A}
 .wk-cell.ev-school{background:#EEEDFE}.wk-cell.ev-school .wc-subj{color:#3C3489}
 .wk-cell.modified::after{content:'';position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;background:#E24B4A}
+.wk-cell.wk-special{background:#f5f5f5;min-height:44px}
 .wc-subj{font-weight:500;font-size:11px}
 .wc-room{font-size:10px;opacity:0.75;margin-top:1px}
 .wc-note{font-size:10px;opacity:0.65;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -98,6 +99,17 @@ button{cursor:pointer;font-family:inherit}
 .grade-legend{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center}
 .g-tag{font-size:11px;padding:2px 8px;border-radius:4px}
 .g1{background:#E6EAF8;color:#3C3489}.g2{background:#E6F1FB;color:#0C447C}.g3{background:#FCEBEB;color:#791F1F}
+.cal-list{display:flex;flex-direction:column;gap:8px;margin-bottom:1rem}
+.cal-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid #e8e8e8;border-radius:8px;background:#fff}
+.cal-item-info{flex:1;min-width:0}
+.cal-item-name{font-size:13px;font-weight:500}
+.cal-item-id{font-size:11px;color:#888;margin-top:2px;word-break:break-all}
+.cal-item-type{font-size:10px;padding:2px 6px;border-radius:4px;flex-shrink:0}
+.type-api{background:#E6F1FB;color:#0C447C}
+.type-ics{background:#EAF3DE;color:#27500A}
+.section-title{font-size:14px;font-weight:500;margin-bottom:10px;margin-top:1.5rem}
+.section-title:first-child{margin-top:0}
+.info-box{background:#f9f9f9;border:1px solid #e8e8e8;border-radius:8px;padding:12px;font-size:12px;color:#555;line-height:1.7;margin-bottom:1rem}
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:100;align-items:center;justify-content:center}
 .overlay.open{display:flex}
 .modal{background:#fff;border-radius:12px;padding:1.5rem;width:320px;box-shadow:0 4px 24px rgba(0,0,0,0.15)}
@@ -128,6 +140,7 @@ button{cursor:pointer;font-family:inherit}
   <button class="tab" onclick="showTab('tt')">時間割（基本）</button>
   <button class="tab" onclick="showTab('week')">週間スケジュール</button>
   <button class="tab" onclick="showTab('dl')">提出物・締切</button>
+  <button class="tab" onclick="showTab('shared')">共有カレンダー設定</button>
 </div>
 
 <!-- カレンダー -->
@@ -209,6 +222,32 @@ button{cursor:pointer;font-family:inherit}
   </div>
   <div class="dl-list" id="dl-list"></div>
 </div>
+
+<!-- 共有カレンダー設定 -->
+<div id="sec-shared" class="sec">
+  <div class="info-box">
+    カレンダーIDまたはiCal URL（.ics）を登録すると、「カレンダー」タブの「GCal取得」時に共有カレンダーのイベントも取り込まれます。<br>
+    カレンダーID形式: <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="651d1d1d1d2502170a10154b060409000b0104174b020a0a0209004b060a08">[email&#160;protected]</a></code><br>
+    iCal URL形式: <code>https://calendar.google.com/calendar/ical/xxxx/public/basic.ics</code>
+  </div>
+  <div class="section-title">カレンダーIDで追加（Google Calendar API・要ログイン）</div>
+  <div class="form-row" style="margin-top:0;margin-bottom:1rem">
+    <div><label>カレンダー名（任意）</label><input type="text" id="sc-name" placeholder="例: 学校行事" style="width:130px"></div>
+    <div><label>カレンダーID</label><input type="text" id="sc-id" placeholder="xxxx@group.calendar.google.com" style="width:250px"></div>
+    <div><button class="add-btn" onclick="addSharedCal('api')">追加</button></div>
+  </div>
+  <div class="section-title">iCal URL（.ics）で追加（ログイン不要）</div>
+  <div class="form-row" style="margin-top:0;margin-bottom:1rem">
+    <div><label>カレンダー名（任意）</label><input type="text" id="sc-ics-name" placeholder="例: 校務分掌" style="width:130px"></div>
+    <div><label>iCal URL</label><input type="text" id="sc-ics-url" placeholder="https://calendar.google.com/calendar/ical/..." style="width:250px"></div>
+    <div><button class="add-btn" onclick="addSharedCal('ics')">追加</button></div>
+  </div>
+  <div class="section-title">登録済み共有カレンダー</div>
+  <div class="cal-list" id="shared-cal-list"></div>
+  <div style="margin-top:1rem">
+    <button class="sync-btn" onclick="syncAllSharedCals()">登録済みカレンダーをすべて取得</button>
+  </div>
+</div>
 </div>
 
 <!-- 時間割編集モーダル -->
@@ -287,7 +326,7 @@ button{cursor:pointer;font-family:inherit}
   </div>
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 const CLIENT_ID = '116307121637-ev8bq1td5q8v6v11f5dtmo9u53nqtft2.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks';
 let accessToken = null;
@@ -296,9 +335,23 @@ let timetable = JSON.parse(localStorage.getItem('sch_tt') || '{}');
 let deadlines = JSON.parse(localStorage.getItem('sch_dl') || '[]');
 let weekOverrides = JSON.parse(localStorage.getItem('sch_wov') || '{}');
 let dayMemos = JSON.parse(localStorage.getItem('sch_memo') || '{}');
+let sharedCals = JSON.parse(localStorage.getItem('sch_shared') || '[]');
 let cur = new Date(), weekBase = getMonday(new Date());
 let editTTKey = null, editWkKey = null, editMemoKey = null;
-const PERIODS = [{l:'1限',t:'8:45'},{l:'2限',t:'9:40'},{l:'3限',t:'10:35'},{l:'4限',t:'11:30'},{l:'5限',t:'13:20'},{l:'6限',t:'14:15'}];
+const PERIODS = [
+  {l:'朝SHR', t:'8:30',  special:true},
+  {l:'1校時', t:'8:45',  special:false},
+  {l:'2校時', t:'9:40',  special:false},
+  {l:'3校時', t:'10:35', special:false},
+  {l:'昼休み',t:'12:20', special:true},
+  {l:'4校時', t:'13:20', special:false},
+  {l:'5校時', t:'14:15', special:false},
+  {l:'6校時', t:'15:10', special:false},
+  {l:'放課後', t:'16:05', special:true},
+  {l:'時間外', t:'',      special:true},
+];
+// 時間割（基本）に使う校時のみ（朝SHR・昼休み・放課後・時間外を除く）
+const TT_PERIODS = PERIODS.filter(p => !p.special);
 const WDAYS = ['月','火','水','木','金'];
 
 function save() {
@@ -307,6 +360,7 @@ function save() {
   localStorage.setItem('sch_dl', JSON.stringify(deadlines));
   localStorage.setItem('sch_wov', JSON.stringify(weekOverrides));
   localStorage.setItem('sch_memo', JSON.stringify(dayMemos));
+  localStorage.setItem('sch_shared', JSON.stringify(sharedCals));
 }
 function fmt(d) { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function getMonday(d) { const m = new Date(d); const day = m.getDay(); m.setDate(m.getDate()-day+(day===0?-6:1)); m.setHours(0,0,0,0); return m; }
@@ -375,9 +429,13 @@ async function pushToGCal() {
 async function syncFromGCal() {
   if (!accessToken) { alert('先にGoogleでログインしてください'); return; }
   const y = cur.getFullYear(), m = cur.getMonth();
+  const tMin = new Date(y,m,1).toISOString();
+  const tMax = new Date(y,m+1,0,23,59,59).toISOString();
+  let total = 0;
+  // メインカレンダー取得
   try {
     const r = await gapi.client.request({ path:'https://www.googleapis.com/calendar/v3/calendars/primary/events',
-      params:{timeMin:new Date(y,m,1).toISOString(),timeMax:new Date(y,m+1,0,23,59,59).toISOString(),singleEvents:true,orderBy:'startTime',maxResults:100} });
+      params:{timeMin:tMin,timeMax:tMax,singleEvents:true,orderBy:'startTime',maxResults:100} });
     const items = r.result.items || [];
     items.forEach(item => {
       const date = (item.start.date||item.start.dateTime||'').substring(0,10); if (!date) return;
@@ -387,8 +445,39 @@ async function syncFromGCal() {
       const clean = title.replace(/^\[(授業|行事|校務|締切)\]\s*/,'');
       if (!events.find(e => e.date===date && e.title===clean)) events.push({id:Date.now()+Math.random(),date,title:clean,type});
     });
-    save(); renderCal(); alert('カレンダー取得完了: '+items.length+'件');
-  } catch(e) { alert('取得エラー: '+e.message); }
+    total += items.length;
+  } catch(e) { alert('メインカレンダー取得エラー: '+e.message); return; }
+  // 共有カレンダー（API方式）取得
+  const apiCals = sharedCals.filter(c => c.type==='api');
+  for (const cal of apiCals) {
+    try {
+      const r = await gapi.client.request({ path:'https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(cal.calId)+'/events',
+        params:{timeMin:tMin,timeMax:tMax,singleEvents:true,orderBy:'startTime',maxResults:100} });
+      const items = r.result.items || [];
+      items.forEach(item => {
+        const date = (item.start.date||item.start.dateTime||'').substring(0,10); if (!date) return;
+        const title = (item.summary||'');
+        if (!events.find(e => e.date===date && e.title===title)) events.push({id:Date.now()+Math.random(),date,title,type:'event',source:cal.name});
+      });
+      total += items.length;
+    } catch(e) { alert(cal.name+'の取得エラー: '+e.message); }
+  }
+  // 共有カレンダー（iCal方式）取得
+  const icsCals = sharedCals.filter(c => c.type==='ics');
+  for (const cal of icsCals) {
+    try {
+      const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(cal.calId);
+      const resp = await fetch(proxyUrl);
+      if (!resp.ok) throw new Error('取得失敗');
+      const text = await resp.text();
+      const parsed = parseICS(text, cal.name);
+      parsed.forEach(ev => {
+        if (!events.find(e => e.date===ev.date && e.title===ev.title)) events.push(ev);
+      });
+      total += parsed.length;
+    } catch(e) { alert(cal.name+' (iCal) の取得エラー: '+e.message); }
+  }
+  save(); renderCal(); alert('取得完了: 合計'+total+'件（共有カレンダー含む）');
 }
 
 async function syncWeekFromGCal() {
@@ -431,10 +520,11 @@ async function syncFromTasks() {
 }
 
 function showTab(t) {
-  document.querySelectorAll('.tab').forEach((b,i) => b.classList.toggle('active', ['cal','tt','week','dl'][i]===t));
+  document.querySelectorAll('.tab').forEach((b,i) => b.classList.toggle('active', ['cal','tt','week','dl','shared'][i]===t));
   document.querySelectorAll('.sec').forEach(s => s.classList.remove('active'));
   document.getElementById('sec-'+t).classList.add('active');
   if (t==='tt') renderTT(); if (t==='week') renderWeek(); if (t==='dl') renderDL();
+  if (t==='shared') renderSharedCals();
 }
 
 function renderCal() {
@@ -466,13 +556,13 @@ function renderTT() {
   const g = document.getElementById('tt-grid'); g.innerHTML='';
   const blank = document.createElement('div'); blank.style.cssText='height:32px'; g.appendChild(blank);
   WDAYS.forEach(d => { const h=document.createElement('div');h.className='tt-head';h.textContent=d;g.appendChild(h); });
-  PERIODS.forEach((p,pi) => {
+  TT_PERIODS.forEach((p,pi) => {
     const ph=document.createElement('div');ph.className='tt-period';ph.innerHTML=p.l+'<br><small>'+p.t+'</small>';g.appendChild(ph);
     WDAYS.forEach((_,di) => {
       const key=di+'-'+pi, data=timetable[key]||{};
       const cell=document.createElement('div'); cell.className='tt-cell'+(data.grade?' '+data.grade:'');
       cell.innerHTML=data.subj?'<div class="tt-subj">'+data.subj+'</div>'+(data.room?'<div class="tt-room">'+data.room+'</div>':''):'<span style="font-size:18px;opacity:0.2">+</span>';
-      cell.onclick=()=>openTTModal(key,WDAYS[di]+'曜 '+(pi+1)+'限',data);
+      cell.onclick=()=>openTTModal(key,WDAYS[di]+'曜 '+p.l,data);
       g.appendChild(cell);
     });
   });
@@ -499,8 +589,16 @@ function getWkKey(dateStr,pi) { return dateStr+'|'+pi; }
 function getCellData(dateStr,di,pi) {
   const wkKey=getWkKey(dateStr,pi);
   if (weekOverrides[wkKey]!==undefined) return {...weekOverrides[wkKey],modified:true};
-  const base=timetable[di+'-'+pi];
-  return base ? {...base,type:'lesson',modified:false} : {modified:false};
+  // PERIODS[pi]が通常授業の場合のみ基本時間割から取得
+  const p = PERIODS[pi];
+  if (p && !p.special) {
+    const ttIdx = TT_PERIODS.indexOf(p);
+    if (ttIdx >= 0) {
+      const base = timetable[di+'-'+ttIdx];
+      return base ? {...base,type:'lesson',modified:false} : {modified:false};
+    }
+  }
+  return {modified:false};
 }
 
 function renderWeek() {
@@ -531,17 +629,22 @@ function renderWeek() {
     wrap.appendChild(top);wrap.appendChild(memoArea);hw.appendChild(wrap);
   });
   PERIODS.forEach((p,pi) => {
-    const ph=document.createElement('div');ph.className='wk-period';ph.innerHTML=p.l+'<br><small>'+p.t+'</small>';g.appendChild(ph);
+    const ph=document.createElement('div');
+    ph.className='wk-period';
+    ph.style.cssText = p.special ? 'background:#e8e8e8;font-weight:500;' : '';
+    ph.innerHTML=p.l+(p.t?'<br><small>'+p.t+'</small>':'');
+    g.appendChild(ph);
     wDates.forEach((d,di) => {
       const dateStr=fmt(d), data=getCellData(dateStr,di,pi);
       const cell=document.createElement('div');
       let cls='wk-cell';
+      if (p.special) cls+=' wk-special';
       if (data.type==='event') cls+=' ev-event'; else if (data.type==='school') cls+=' ev-school'; else if (data.grade) cls+=' '+data.grade;
       if (data.modified) cls+=' modified';
       cell.className=cls;
       if (data.subj) cell.innerHTML='<div class="wc-subj">'+data.subj+'</div>'+(data.room?'<div class="wc-room">'+data.room+'</div>':'');
       else if (data.evtitle) cell.innerHTML='<div class="wc-subj">'+data.evtitle+'</div>'+(data.evplace?'<div class="wc-room">'+data.evplace+'</div>':'')+(data.evnote?'<div class="wc-note">'+data.evnote+'</div>':'');
-      cell.onclick=()=>openWkModal(dateStr,di,pi,data);
+      cell.onclick=()=>openWkModal(dateStr,di,pi,data,p.l);
       g.appendChild(cell);
     });
   });
@@ -562,10 +665,11 @@ function saveMemo() {
 }
 function clearMemo() { if (!editMemoKey) return; delete dayMemos[editMemoKey]; save(); closeMemoModal(); renderWeek(); }
 
-function openWkModal(dateStr,di,pi,data) {
+function openWkModal(dateStr,di,pi,data,periodLabel) {
   editWkKey=getWkKey(dateStr,pi);
   const d=new Date(dateStr+'T00:00:00');
-  document.getElementById('wk-modal-title').textContent=WDAYS[di]+'曜 '+(pi+1)+'限（'+(d.getMonth()+1)+'/'+(d.getDate())+'）';
+  const pLabel = periodLabel || PERIODS[pi]?.l || (pi+1)+'校時';
+  document.getElementById('wk-modal-title').textContent=WDAYS[di]+'曜 '+pLabel+'（'+(d.getMonth()+1)+'/'+(d.getDate())+'）';
   const type=data.type||'lesson';
   document.getElementById('wm-type').value=type;
   document.getElementById('wm-grade').value=data.grade||'';
@@ -624,14 +728,104 @@ function addDeadline() {
 function toggleDL(id) { const d=deadlines.find(x=>x.id===id); if(d){d.done=!d.done;save();renderDL();} }
 function deleteDL(id) { deadlines=deadlines.filter(x=>x.id!==id); save(); renderDL(); }
 
+// 共有カレンダー管理
+function addSharedCal(type) {
+  let name, calId;
+  if (type==='api') {
+    name = document.getElementById('sc-name').value.trim();
+    calId = document.getElementById('sc-id').value.trim();
+    if (!calId) { alert('カレンダーIDを入力してください'); return; }
+    if (!name) name = calId;
+    document.getElementById('sc-name').value='';
+    document.getElementById('sc-id').value='';
+  } else {
+    name = document.getElementById('sc-ics-name').value.trim();
+    calId = document.getElementById('sc-ics-url').value.trim();
+    if (!calId) { alert('iCal URLを入力してください'); return; }
+    if (!calId.startsWith('http')) { alert('URLはhttpから始まる形式で入力してください'); return; }
+    if (!name) name = 'iCalカレンダー';
+    document.getElementById('sc-ics-name').value='';
+    document.getElementById('sc-ics-url').value='';
+  }
+  if (sharedCals.find(c => c.calId===calId)) { alert('すでに登録されています'); return; }
+  sharedCals.push({id:Date.now(), name, calId, type});
+  save(); renderSharedCals();
+}
+
+function deleteSharedCal(id) {
+  sharedCals = sharedCals.filter(c => c.id!==id);
+  save(); renderSharedCals();
+}
+
+function renderSharedCals() {
+  const list = document.getElementById('shared-cal-list');
+  list.innerHTML = '';
+  if (!sharedCals.length) {
+    list.innerHTML = '<p style="font-size:13px;color:#888;padding:0.5rem 0">登録された共有カレンダーはありません</p>';
+    return;
+  }
+  sharedCals.forEach(cal => {
+    const item = document.createElement('div'); item.className='cal-item';
+    item.innerHTML=`<div class="cal-item-info"><div class="cal-item-name">${cal.name}</div><div class="cal-item-id">${cal.calId}</div></div><span class="cal-item-type ${cal.type==='api'?'type-api':'type-ics'}">${cal.type==='api'?'カレンダーID':'iCal'}</span><button class="del-btn" onclick="deleteSharedCal(${cal.id})">✕</button>`;
+    list.appendChild(item);
+  });
+}
+
+function parseICS(text, sourceName) {
+  const results = [];
+  const events = text.split('BEGIN:VEVENT');
+  events.shift();
+  events.forEach(block => {
+    const summaryMatch = block.match(/SUMMARY[^:]*:(.+)/);
+    const dtMatch = block.match(/DTSTART[^:]*:(\d{8})/);
+    if (!summaryMatch || !dtMatch) return;
+    const title = summaryMatch[1].replace(/\r/g,'').trim();
+    const raw = dtMatch[1];
+    const date = raw.substring(0,4)+'-'+raw.substring(4,6)+'-'+raw.substring(6,8);
+    results.push({id:Date.now()+Math.random(), date, title, type:'event', source:sourceName});
+  });
+  return results;
+}
+
+async function syncAllSharedCals() {
+  const apiCals = sharedCals.filter(c => c.type==='api');
+  const icsCals = sharedCals.filter(c => c.type==='ics');
+  if (!sharedCals.length) { alert('共有カレンダーが登録されていません'); return; }
+  if (apiCals.length && !accessToken) { alert('カレンダーID方式の取得にはGoogleログインが必要です'); }
+  const y = cur.getFullYear(), m = cur.getMonth();
+  const tMin = new Date(y,m,1).toISOString();
+  const tMax = new Date(y,m+1,0,23,59,59).toISOString();
+  let total = 0;
+  for (const cal of apiCals) {
+    if (!accessToken) continue;
+    try {
+      const r = await gapi.client.request({ path:'https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(cal.calId)+'/events',
+        params:{timeMin:tMin,timeMax:tMax,singleEvents:true,orderBy:'startTime',maxResults:100} });
+      const items = r.result.items || [];
+      items.forEach(item => {
+        const date=(item.start.date||item.start.dateTime||'').substring(0,10); if(!date)return;
+        const title=item.summary||'';
+        if (!events.find(e=>e.date===date&&e.title===title)) events.push({id:Date.now()+Math.random(),date,title,type:'event',source:cal.name});
+      });
+      total += items.length;
+    } catch(e) { alert(cal.name+'の取得エラー: '+e.message); }
+  }
+  for (const cal of icsCals) {
+    try {
+      const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(cal.calId);
+      const resp = await fetch(proxyUrl);
+      if (!resp.ok) throw new Error('取得失敗');
+      const text = await resp.text();
+      const parsed = parseICS(text, cal.name);
+      parsed.forEach(ev => {
+        if (!events.find(e=>e.date===ev.date&&e.title===ev.title)) events.push(ev);
+      });
+      total += parsed.length;
+    } catch(e) { alert(cal.name+' (iCal) の取得エラー: '+e.message); }
+  }
+  save(); renderCal(); alert('共有カレンダー取得完了: '+total+'件');
+}
+
 document.getElementById('tt-modal').addEventListener('click',function(e){if(e.target===this)closeTTModal();});
 document.getElementById('wk-modal').addEventListener('click',function(e){if(e.target===this)closeWkModal();});
-document.getElementById('memo-modal').addEventListener('click',function(e){if(e.target===this)closeMemoModal();});
-
-const td=new Date();
-document.getElementById('ev-date').value=fmt(td);
-document.getElementById('dl-date').value=fmt(td);
-renderCal();
-</script>
-</body>
-</html>
+document.getElementById('memo-modal

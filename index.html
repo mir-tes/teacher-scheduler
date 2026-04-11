@@ -326,7 +326,18 @@ button{cursor:pointer;font-family:inherit}
   </div>
 </div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+<!-- イベント全文ポップアップ -->
+<div class="overlay" id="ev-popup">
+  <div class="modal" style="max-width:340px">
+    <h3 id="ev-popup-date" style="font-size:13px;color:#888;font-weight:400;margin-bottom:6px"></h3>
+    <p id="ev-popup-title" style="font-size:14px;line-height:1.7;word-break:break-all;margin-bottom:14px"></p>
+    <div class="modal-btns">
+      <button class="btn-s" onclick="document.getElementById('ev-popup').classList.remove('open')">閉じる</button>
+    </div>
+  </div>
+</div>
+<script>
 const CLIENT_ID = '116307121637-ev8bq1td5q8v6v11f5dtmo9u53nqtft2.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks';
 let accessToken = null;
@@ -451,8 +462,10 @@ async function syncFromGCal() {
   const apiCals = sharedCals.filter(c => c.type==='api');
   for (const cal of apiCals) {
     try {
-      const r = await gapi.client.request({ path:'https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(cal.calId)+'/events',
+      const calId = cal.calId.trim();
+      const r = await gapi.client.request({ path:'https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(calId)+'/events',
         params:{timeMin:tMin,timeMax:tMax,singleEvents:true,orderBy:'startTime',maxResults:100} });
+      if (r.result.error) throw new Error(r.result.error.message || JSON.stringify(r.result.error));
       const items = r.result.items || [];
       items.forEach(item => {
         const date = (item.start.date||item.start.dateTime||'').substring(0,10); if (!date) return;
@@ -460,7 +473,7 @@ async function syncFromGCal() {
         if (!events.find(e => e.date===date && e.title===title)) events.push({id:Date.now()+Math.random(),date,title,type:'event',source:cal.name});
       });
       total += items.length;
-    } catch(e) { alert(cal.name+'の取得エラー: '+e.message); }
+    } catch(e) { alert(cal.name+'の取得エラー: '+(e.message||e.result?.error?.message||JSON.stringify(e))); }
   }
   // 共有カレンダー（iCal方式）取得
   const icsCals = sharedCals.filter(c => c.type==='ics');
@@ -534,7 +547,16 @@ function renderCal() {
     const cell = document.createElement('div'); cell.className = 'cal-cell'+(other?' other':'');
     if (date.toDateString()===today.toDateString()) cell.classList.add('today');
     const dn = document.createElement('div'); dn.className='dn'; dn.textContent=date.getDate(); cell.appendChild(dn);
-    events.filter(e=>e.date===fmt(date)).forEach(e=>{const d=document.createElement('div');d.className='ev ev-'+e.type;d.textContent=e.title;cell.appendChild(d);});
+    events.filter(e=>e.date===fmt(date)).forEach(e=>{
+      const d=document.createElement('div');
+      d.className='ev ev-'+e.type;
+      const short = e.title.length > 10 ? e.title.substring(0,10)+'…' : e.title;
+      d.textContent = short;
+      d.style.cursor = 'pointer';
+      d.title = e.title;
+      d.onclick = (ev) => { ev.stopPropagation(); showEvPopup(e.date, e.title); };
+      cell.appendChild(d);
+    });
     grid.appendChild(cell);
   };
   for (let i=0;i<first;i++) addC(new Date(y,m,0-first+i+2),true);
@@ -815,8 +837,10 @@ async function syncAllSharedCals() {
   for (const cal of apiCals) {
     if (!accessToken) continue;
     try {
-      const r = await gapi.client.request({ path:'https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(cal.calId)+'/events',
+      const calId = cal.calId.trim();
+      const r = await gapi.client.request({ path:'https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(calId)+'/events',
         params:{timeMin:tMin,timeMax:tMax,singleEvents:true,orderBy:'startTime',maxResults:100} });
+      if (r.result.error) throw new Error(r.result.error.message || JSON.stringify(r.result.error));
       const items = r.result.items || [];
       items.forEach(item => {
         const date=(item.start.date||item.start.dateTime||'').substring(0,10); if(!date)return;
@@ -824,7 +848,7 @@ async function syncAllSharedCals() {
         if (!events.find(e=>e.date===date&&e.title===title)) events.push({id:Date.now()+Math.random(),date,title,type:'event',source:cal.name});
       });
       total += items.length;
-    } catch(e) { alert(cal.name+'の取得エラー: '+e.message); }
+    } catch(e) { alert(cal.name+'の取得エラー: '+(e.message||e.result?.error?.message||JSON.stringify(e))); }
   }
   for (const cal of icsCals) {
     try {
@@ -839,9 +863,17 @@ async function syncAllSharedCals() {
   save(); renderCal(); alert('共有カレンダー取得完了: '+total+'件');
 }
 
+
+function showEvPopup(date, title) {
+  document.getElementById('ev-popup-date').textContent = date;
+  document.getElementById('ev-popup-title').textContent = title;
+  document.getElementById('ev-popup').classList.add('open');
+}
+
 document.getElementById('tt-modal').addEventListener('click',function(e){if(e.target===this)closeTTModal();});
 document.getElementById('wk-modal').addEventListener('click',function(e){if(e.target===this)closeWkModal();});
 document.getElementById('memo-modal').addEventListener('click',function(e){if(e.target===this)closeMemoModal();});
+document.getElementById('ev-popup').addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
 
 const td=new Date();
 document.getElementById('ev-date').value=fmt(td);

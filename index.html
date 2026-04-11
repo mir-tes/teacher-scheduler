@@ -828,4 +828,12 @@ async function syncAllSharedCals() {
 
 document.getElementById('tt-modal').addEventListener('click',function(e){if(e.target===this)closeTTModal();});
 document.getElementById('wk-modal').addEventListener('click',function(e){if(e.target===this)closeWkModal();});
-document.getElementById('memo-modal
+document.getElementById('memo-modal').addEventListener('click',function(e){if(e.target===this)closeMemoModal();});
+
+const td=new Date();
+document.getElementById('ev-date').value=fmt(td);
+document.getElementById('dl-date').value=fmt(td);
+renderCal();
+</script>
+</body>
+</html>

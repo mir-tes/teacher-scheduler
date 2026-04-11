@@ -466,10 +466,7 @@ async function syncFromGCal() {
   const icsCals = sharedCals.filter(c => c.type==='ics');
   for (const cal of icsCals) {
     try {
-      const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(cal.calId);
-      const resp = await fetch(proxyUrl);
-      if (!resp.ok) throw new Error('取得失敗');
-      const text = await resp.text();
+      const text = await fetchICS(cal.calId);
       const parsed = parseICS(text, cal.name);
       parsed.forEach(ev => {
         if (!events.find(e => e.date===ev.date && e.title===ev.title)) events.push(ev);
@@ -771,6 +768,25 @@ function renderSharedCals() {
   });
 }
 
+async function fetchICS(url) {
+  const proxies = [
+    u => 'https://corsproxy.io/?' + encodeURIComponent(u),
+    u => 'https://cors-anywhere.herokuapp.com/' + u,
+    u => 'https://thingproxy.freeboard.io/fetch/' + u,
+  ];
+  let lastErr;
+  for (const proxy of proxies) {
+    try {
+      const resp = await fetch(proxy(url), {headers:{'X-Requested-With':'XMLHttpRequest'}});
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const text = await resp.text();
+      if (text.includes('BEGIN:VCALENDAR')) return text;
+      throw new Error('iCalデータではありません');
+    } catch(e) { lastErr = e; }
+  }
+  throw new Error('すべてのプロキシで失敗: ' + lastErr.message);
+}
+
 function parseICS(text, sourceName) {
   const results = [];
   const events = text.split('BEGIN:VEVENT');
@@ -812,10 +828,7 @@ async function syncAllSharedCals() {
   }
   for (const cal of icsCals) {
     try {
-      const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(cal.calId);
-      const resp = await fetch(proxyUrl);
-      if (!resp.ok) throw new Error('取得失敗');
-      const text = await resp.text();
+      const text = await fetchICS(cal.calId);
       const parsed = parseICS(text, cal.name);
       parsed.forEach(ev => {
         if (!events.find(e=>e.date===ev.date&&e.title===ev.title)) events.push(ev);

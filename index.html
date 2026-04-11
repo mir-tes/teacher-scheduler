@@ -368,6 +368,7 @@ const PERIODS = [
 const TT_PERIODS = PERIODS.filter(p => !p.special);
 const WDAYS = ['月','火','水','木','金','土','日'];
 const WDAY_STYLES = ['','','','','','color:#5b9bd5','color:#e06c6c'];
+const TT_WDAYS = ['月','火','水','木','金'];
 
 function save() {
   localStorage.setItem('sch_ev', JSON.stringify(events));
@@ -591,14 +592,14 @@ function changeMonth(d) { cur.setMonth(cur.getMonth()+d); renderCal(); }
 function renderTT() {
   const g = document.getElementById('tt-grid'); g.innerHTML='';
   const blank = document.createElement('div'); blank.style.cssText='height:32px'; g.appendChild(blank);
-  WDAYS.forEach(d => { const h=document.createElement('div');h.className='tt-head';h.textContent=d;g.appendChild(h); });
+  TT_WDAYS.forEach(d => { const h=document.createElement('div');h.className='tt-head';h.textContent=d;g.appendChild(h); });
   TT_PERIODS.forEach((p,pi) => {
     const ph=document.createElement('div');ph.className='tt-period';ph.innerHTML=p.l+'<br><small>'+p.t+'</small>';g.appendChild(ph);
-    WDAYS.forEach((_,di) => {
+    TT_WDAYS.forEach((_,di) => {
       const key=di+'-'+pi, data=timetable[key]||{};
       const cell=document.createElement('div'); cell.className='tt-cell'+(data.grade?' '+data.grade:'');
       cell.innerHTML=data.subj?'<div class="tt-subj">'+data.subj+'</div>'+(data.room?'<div class="tt-room">'+data.room+'</div>':''):'<span style="font-size:18px;opacity:0.2">+</span>';
-      cell.onclick=()=>openTTModal(key,WDAYS[di]+'曜 '+p.l,data);
+      cell.onclick=()=>openTTModal(key,TT_WDAYS[di]+'曜 '+p.l,data);
       g.appendChild(cell);
     });
   });

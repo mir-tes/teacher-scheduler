@@ -333,7 +333,8 @@ button{cursor:pointer;font-family:inherit}
     <h3 id="ev-popup-date" style="font-size:13px;color:#888;font-weight:400;margin-bottom:6px"></h3>
     <p id="ev-popup-title" style="font-size:14px;line-height:1.7;word-break:break-all;margin-bottom:14px"></p>
     <div class="modal-btns">
-      <button class="btn-s" onclick="document.getElementById('ev-popup').classList.remove('open')">閉じる</button>
+      <button class="btn-clr" onclick="deleteCurrentEvent()">このアプリから削除</button>
+      <button class="btn-s" onclick="closeEvPopup()">閉じる</button>
     </div>
   </div>
 </div>
@@ -442,6 +443,9 @@ async function syncFromGCal() {
   const y = cur.getFullYear(), m = cur.getMonth();
   const tMin = new Date(y,m,1).toISOString();
   const tMax = new Date(y,m+1,0,23,59,59).toISOString();
+  // 当月のGCal由来イベントを一旦削除してから再取得（リフレッシュ）
+  const mStr = y+'-'+String(m+1).padStart(2,'0');
+  events = events.filter(e => !(e.date && e.date.startsWith(mStr) && e.source !== 'manual'));
   let total = 0;
   // メインカレンダー取得
   try {
@@ -554,7 +558,7 @@ function renderCal() {
       d.textContent = short;
       d.style.cursor = 'pointer';
       d.title = e.title;
-      d.onclick = (ev) => { ev.stopPropagation(); showEvPopup(e.date, e.title); };
+      d.onclick = (ev) => { ev.stopPropagation(); showEvPopup(e.id, e.date, e.title); };
       cell.appendChild(d);
     });
     grid.appendChild(cell);
@@ -567,7 +571,7 @@ function renderCal() {
 function addEvent() {
   const date=document.getElementById('ev-date').value, title=document.getElementById('ev-title').value.trim(), type=document.getElementById('ev-type').value;
   if (!date||!title) return;
-  events.push({id:Date.now(),date,title,type}); save(); document.getElementById('ev-title').value=''; renderCal();
+  events.push({id:Date.now(),date,title,type,source:'manual'}); save(); document.getElementById('ev-title').value=''; renderCal();
 }
 function changeMonth(d) { cur.setMonth(cur.getMonth()+d); renderCal(); }
 
@@ -831,6 +835,10 @@ async function syncAllSharedCals() {
   if (!sharedCals.length) { alert('共有カレンダーが登録されていません'); return; }
   if (apiCals.length && !accessToken) { alert('カレンダーID方式の取得にはGoogleログインが必要です'); }
   const y = cur.getFullYear(), m = cur.getMonth();
+  // 当月の共有カレンダー由来イベントを削除してから再取得
+  const mStr = y+'-'+String(m+1).padStart(2,'0');
+  const sharedNames = sharedCals.map(c => c.name);
+  events = events.filter(e => !(e.date && e.date.startsWith(mStr) && e.source && sharedNames.includes(e.source)));
   const tMin = new Date(y,m,1).toISOString();
   const tMax = new Date(y,m+1,0,23,59,59).toISOString();
   let total = 0;
@@ -864,16 +872,28 @@ async function syncAllSharedCals() {
 }
 
 
-function showEvPopup(date, title) {
+let currentEvId = null;
+function showEvPopup(evId, date, title) {
+  currentEvId = evId;
   document.getElementById('ev-popup-date').textContent = date;
   document.getElementById('ev-popup-title').textContent = title;
   document.getElementById('ev-popup').classList.add('open');
+}
+function closeEvPopup() {
+  document.getElementById('ev-popup').classList.remove('open');
+  currentEvId = null;
+}
+function deleteCurrentEvent() {
+  if (currentEvId === null) return;
+  if (!confirm('このイベントをアプリから削除しますか？\n（元のGoogleカレンダーは変更されません）')) return;
+  events = events.filter(e => e.id !== currentEvId);
+  save(); closeEvPopup(); renderCal();
 }
 
 document.getElementById('tt-modal').addEventListener('click',function(e){if(e.target===this)closeTTModal();});
 document.getElementById('wk-modal').addEventListener('click',function(e){if(e.target===this)closeWkModal();});
 document.getElementById('memo-modal').addEventListener('click',function(e){if(e.target===this)closeMemoModal();});
-document.getElementById('ev-popup').addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
+document.getElementById('ev-popup').addEventListener('click',function(e){if(e.target===this)closeEvPopup();});
 
 const td=new Date();
 document.getElementById('ev-date').value=fmt(td);

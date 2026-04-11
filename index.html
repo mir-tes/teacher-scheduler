@@ -36,6 +36,8 @@ button{cursor:pointer;font-family:inherit}
 .cal-dow{font-size:11px;color:#888;text-align:center;padding:4px 0}
 .cal-cell{min-height:72px;padding:4px;border:1px solid #e8e8e8;border-radius:8px;background:#fff;font-size:11px}
 .cal-cell.today{border:2px solid #378ADD}
+.cal-cell.cal-sat .dn{color:#5b9bd5}
+.cal-cell.cal-sun .dn{color:#e06c6c}
 .cal-cell.other .dn{color:#bbb}
 .dn{font-size:12px;font-weight:500;margin-bottom:2px}
 .ev{border-radius:3px;padding:1px 4px;margin-bottom:1px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
@@ -59,8 +61,8 @@ button{cursor:pointer;font-family:inherit}
 .week-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .week-nav h3{font-size:14px;font-weight:500}
 .week-outer{overflow-x:auto}
-.wk-head-wrap{display:grid;grid-template-columns:52px repeat(5,1fr);gap:3px;min-width:540px;margin-bottom:3px}
-.week-grid{display:grid;grid-template-columns:52px repeat(5,1fr);gap:3px;min-width:540px}
+.wk-head-wrap{display:grid;grid-template-columns:52px repeat(5,1fr) repeat(2,0.5fr);gap:3px;min-width:560px;margin-bottom:3px}
+.week-grid{display:grid;grid-template-columns:52px repeat(5,1fr) repeat(2,0.5fr);gap:3px;min-width:560px}
 .wk-blank{height:32px}
 .wk-head{border-radius:8px;overflow:hidden;border:1px solid #e8e8e8}
 .wk-head.is-today .wk-head-top{background:#E6F1FB;color:#0C447C}
@@ -160,8 +162,8 @@ button{cursor:pointer;font-family:inherit}
     </div>
   </div>
   <div class="cal-grid" id="cal-grid">
-    <div class="cal-dow">日</div><div class="cal-dow">月</div><div class="cal-dow">火</div>
-    <div class="cal-dow">水</div><div class="cal-dow">木</div><div class="cal-dow">金</div><div class="cal-dow">土</div>
+    <div class="cal-dow">月</div><div class="cal-dow">火</div><div class="cal-dow">水</div>
+    <div class="cal-dow">木</div><div class="cal-dow">金</div><div class="cal-dow" style="color:#5b9bd5">土</div><div class="cal-dow" style="color:#e06c6c">日</div>
   </div>
   <div class="form-row">
     <div><label>日付</label><input type="date" id="ev-date"></div>
@@ -364,7 +366,8 @@ const PERIODS = [
 ];
 // 時間割（基本）に使う校時のみ（朝SHR・昼休み・放課後・時間外を除く）
 const TT_PERIODS = PERIODS.filter(p => !p.special);
-const WDAYS = ['月','火','水','木','金'];
+const WDAYS = ['月','火','水','木','金','土','日'];
+const WDAY_STYLES = ['','','','','','color:#5b9bd5','color:#e06c6c'];
 
 function save() {
   localStorage.setItem('sch_ev', JSON.stringify(events));
@@ -546,9 +549,16 @@ function renderCal() {
   document.getElementById('cal-title').textContent = y+'年'+(m+1)+'月';
   const grid = document.getElementById('cal-grid');
   grid.querySelectorAll('.cal-cell').forEach(c => c.remove());
-  const first = new Date(y,m,1).getDay(), last = new Date(y,m+1,0).getDate(), today = new Date();
+  const rawFirst = new Date(y,m,1).getDay(); // 0=Sun
+  const first = (rawFirst === 0) ? 6 : rawFirst - 1; // Monday=0
+  const last = new Date(y,m+1,0).getDate(), today = new Date();
   const addC = (date, other) => {
-    const cell = document.createElement('div'); cell.className = 'cal-cell'+(other?' other':'');
+    const cell = document.createElement('div');
+    const dow = date.getDay(); // 0=Sun,6=Sat
+    let cellCls = 'cal-cell'+(other?' other':'');
+    if (dow===6) cellCls += ' cal-sat';
+    if (dow===0) cellCls += ' cal-sun';
+    cell.className = cellCls;
     if (date.toDateString()===today.toDateString()) cell.classList.add('today');
     const dn = document.createElement('div'); dn.className='dn'; dn.textContent=date.getDate(); cell.appendChild(dn);
     events.filter(e=>e.date===fmt(date)).forEach(e=>{
@@ -563,7 +573,10 @@ function renderCal() {
     });
     grid.appendChild(cell);
   };
-  for (let i=0;i<first;i++) addC(new Date(y,m,0-first+i+2),true);
+  // Monday-start: fill blanks before 1st
+  for (let i=0;i<first;i++) {
+    const d = new Date(y,m,1); d.setDate(1-first+i); addC(d,true);
+  }
   for (let d=1;d<=last;d++) addC(new Date(y,m,d),false);
   const rem = (7-((first+last)%7))%7;
   for (let i=1;i<=rem;i++) addC(new Date(y,m+1,i),true);
@@ -614,7 +627,7 @@ function getCellData(dateStr,di,pi) {
   if (weekOverrides[wkKey]!==undefined) return {...weekOverrides[wkKey],modified:true};
   // PERIODS[pi]が通常授業の場合のみ基本時間割から取得
   const p = PERIODS[pi];
-  if (p && !p.special) {
+  if (p && !p.special && di < 5) {
     const ttIdx = TT_PERIODS.indexOf(p);
     if (ttIdx >= 0) {
       const base = timetable[di+'-'+ttIdx];
@@ -628,16 +641,16 @@ function renderWeek() {
   const hw=document.getElementById('wk-head-wrap'); hw.innerHTML='';
   const g=document.getElementById('week-grid'); g.innerHTML='';
   const wDates=[];
-  for (let i=0;i<5;i++) { const d=new Date(weekBase);d.setDate(weekBase.getDate()+i);wDates.push(d); }
-  const d0=wDates[0],d4=wDates[4];
-  document.getElementById('week-title').textContent=(d0.getMonth()+1)+'/'+d0.getDate()+' 〜 '+(d4.getMonth()+1)+'/'+d4.getDate();
+  for (let i=0;i<7;i++) { const d=new Date(weekBase);d.setDate(weekBase.getDate()+i);wDates.push(d); }
+  const d0=wDates[0],d6=wDates[6];
+  document.getElementById('week-title').textContent=(d0.getMonth()+1)+'/'+d0.getDate()+' 〜 '+(d6.getMonth()+1)+'/'+d6.getDate();
   const today=new Date();
   const blank=document.createElement('div');blank.className='wk-blank';hw.appendChild(blank);
   wDates.forEach((d,di) => {
     const dateStr=fmt(d), isToday=d.toDateString()===today.toDateString();
     const wrap=document.createElement('div');wrap.className='wk-head'+(isToday?' is-today':'');
     const top=document.createElement('div');top.className='wk-head-top';
-    top.innerHTML=WDAYS[di]+'<br><span style="font-size:10px">'+(d.getMonth()+1)+'/'+(d.getDate())+'</span>';
+    top.innerHTML='<span style="'+WDAY_STYLES[di]+'">'+(WDAYS[di])+'</span><br><span style="font-size:10px">'+(d.getMonth()+1)+'/'+(d.getDate())+'</span>';
     const memoArea=document.createElement('div');memoArea.className='wk-head-memo';
     const memo=dayMemos[dateStr];
     if (memo) {

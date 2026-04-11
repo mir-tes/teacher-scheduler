@@ -339,16 +339,16 @@ let sharedCals = JSON.parse(localStorage.getItem('sch_shared') || '[]');
 let cur = new Date(), weekBase = getMonday(new Date());
 let editTTKey = null, editWkKey = null, editMemoKey = null;
 const PERIODS = [
-  {l:'朝SHR', t:'8:30',  special:true},
-  {l:'1校時', t:'8:45',  special:false},
-  {l:'2校時', t:'9:40',  special:false},
-  {l:'3校時', t:'10:35', special:false},
-  {l:'昼休み',t:'12:20', special:true},
-  {l:'4校時', t:'13:20', special:false},
-  {l:'5校時', t:'14:15', special:false},
-  {l:'6校時', t:'15:10', special:false},
-  {l:'放課後', t:'16:05', special:true},
-  {l:'時間外', t:'',      special:true},
+  {l:'朝SHR', t:'8:55',  special:true},
+  {l:'1校時', t:'9:20',  special:false},
+  {l:'2校時', t:'10:20', special:false},
+  {l:'3校時', t:'11:20', special:false},
+  {l:'昼休み',t:'12:10', special:true},
+  {l:'4校時', t:'13:00', special:false},
+  {l:'5校時', t:'14:00', special:false},
+  {l:'6校時', t:'15:00', special:false},
+  {l:'放課後', t:'16:10', special:true},
+  {l:'時間外', t:'17:00', special:true},
 ];
 // 時間割（基本）に使う校時のみ（朝SHR・昼休み・放課後・時間外を除く）
 const TT_PERIODS = PERIODS.filter(p => !p.special);

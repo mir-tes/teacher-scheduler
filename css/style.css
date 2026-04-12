@@ -1,0 +1,610 @@
+/* ========== RESET & BASE ========== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+  font-size: 14px;
+  background: #f4f6f9;
+  color: #333;
+  min-height: 100vh;
+}
+
+/* ========== HEADER ========== */
+header {
+  background: #2c3e50;
+  color: #fff;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+header h1 {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+#status-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-badge {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: #666;
+  color: #fff;
+}
+
+.status-badge.connected {
+  background: #27ae60;
+}
+
+/* ========== TABS ========== */
+.tab-nav {
+  display: flex;
+  background: #fff;
+  border-bottom: 2px solid #e0e0e0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tab-btn {
+  flex: 1;
+  min-width: 80px;
+  padding: 10px 8px;
+  border: none;
+  background: none;
+  color: #666;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover { background: #f0f0f0; }
+
+.tab-btn.active {
+  color: #2980b9;
+  border-bottom-color: #2980b9;
+  font-weight: bold;
+}
+
+/* ========== MAIN ========== */
+main { padding: 12px; max-width: 1200px; margin: 0 auto; }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ========== BUTTONS ========== */
+.btn {
+  padding: 6px 14px;
+  border: 1px solid #ccc;
+  background: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #333;
+  transition: background 0.15s;
+}
+
+.btn:hover { background: #f0f0f0; }
+
+.btn-primary {
+  background: #2980b9;
+  border-color: #2980b9;
+  color: #fff;
+}
+
+.btn-primary:hover { background: #2471a3; }
+
+.btn-danger {
+  background: #e74c3c;
+  border-color: #e74c3c;
+  color: #fff;
+}
+
+.btn-danger:hover { background: #c0392b; }
+
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+
+.btn-icon {
+  padding: 4px 10px;
+  font-size: 18px;
+  font-weight: bold;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #555;
+}
+
+.btn-icon:hover { color: #2980b9; }
+
+/* ========== SECTION HEADER ========== */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.section-header h2 { font-size: 16px; color: #2c3e50; }
+
+.nav-row { display: flex; align-items: center; gap: 4px; }
+.nav-row h2 { min-width: 160px; text-align: center; }
+
+.action-row { display: flex; gap: 6px; align-items: center; }
+
+/* ========== CARD ========== */
+.card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  margin-bottom: 12px;
+}
+
+/* ========== FORM ========== */
+.form-row {
+  margin-bottom: 10px;
+}
+
+.form-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: #666;
+  font-weight: bold;
+}
+
+.form-row input[type="text"],
+.form-row input[type="date"],
+.form-row select,
+.form-row textarea {
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  width: 100%;
+}
+
+.radio-row { flex-direction: row; gap: 16px; }
+.radio-row label { flex-direction: row; align-items: center; gap: 4px; font-weight: normal; color: #333; }
+
+/* ========== LEGEND ========== */
+.legend { display: flex; gap: 6px; align-items: center; }
+.legend-item {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid rgba(0,0,0,0.1);
+}
+
+/* ========== CALENDAR ========== */
+.cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: #fff;
+  border: 1px solid #ddd;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  overflow: hidden;
+}
+
+.cal-wd {
+  text-align: center;
+  padding: 6px;
+  font-size: 12px;
+  font-weight: bold;
+  background: #f8f8f8;
+  border-right: 1px solid #ddd;
+}
+
+.cal-wd:last-child { border-right: none; }
+.cal-wd.sat { color: #2980b9; }
+.cal-wd.sun { color: #e74c3c; }
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 0 0 4px 4px;
+  overflow: hidden;
+}
+
+.cal-day {
+  min-height: 80px;
+  border-right: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+  padding: 4px;
+  vertical-align: top;
+}
+
+.cal-day:nth-child(7n) { border-right: none; }
+.cal-day.other-month .cal-date { color: #ccc; }
+.cal-day.today .cal-date {
+  background: #2980b9;
+  color: #fff;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cal-date {
+  font-size: 12px;
+  font-weight: bold;
+  margin-bottom: 2px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cal-day.sat .cal-date { color: #2980b9; }
+.cal-day.sun .cal-date { color: #e74c3c; }
+
+.cal-events { display: flex; flex-direction: column; gap: 1px; }
+
+.cal-event {
+  font-size: 11px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-left: 3px solid;
+}
+
+.cal-event.type-授業 { background: #E8F5E9; border-color: #4CAF50; }
+.cal-event.type-行事 { background: #F3E5F5; border-color: #9C27B0; }
+.cal-event.type-校務 { background: #FFF3E0; border-color: #FF9800; }
+.cal-event.type-締切 { background: #FFEBEE; border-color: #F44336; }
+
+/* ========== TIMETABLE ========== */
+.timetable-grid {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: auto;
+}
+
+.tt-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 480px;
+}
+
+.tt-table th, .tt-table td {
+  border: 1px solid #ddd;
+  text-align: center;
+  padding: 6px 4px;
+}
+
+.tt-table th {
+  background: #f8f8f8;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.tt-table th.sat { color: #2980b9; }
+.tt-table th.sun { color: #e74c3c; }
+
+.tt-cell {
+  cursor: pointer;
+  min-height: 52px;
+  min-width: 90px;
+  font-size: 12px;
+  padding: 4px;
+  transition: opacity 0.15s;
+}
+
+.tt-cell:hover { opacity: 0.8; }
+
+.tt-cell .tt-subject { font-weight: bold; font-size: 13px; }
+.tt-cell .tt-room { color: #777; font-size: 11px; }
+
+.tt-cell.grade-1 { background: #E6EAF8; }
+.tt-cell.grade-2 { background: #E6F1FB; }
+.tt-cell.grade-3 { background: #FCEBEB; }
+
+.tt-period-label {
+  font-size: 11px;
+  color: #777;
+  min-width: 50px;
+}
+
+/* ========== WEEK SCHEDULE ========== */
+.week-grid-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.week-grid {
+  display: grid;
+  grid-template-columns: 64px 1fr 1fr 1fr 1fr 1fr 0.5fr 0.5fr;
+  min-width: 520px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.wg-cell {
+  border-right: 1px solid #ddd;
+  border-bottom: 1px solid #ddd;
+  padding: 4px;
+  position: relative;
+  font-size: 12px;
+}
+
+.wg-cell:last-child { border-right: none; }
+
+.wg-header {
+  background: #f0f4f8;
+  font-weight: bold;
+  text-align: center;
+  font-size: 11px;
+  padding: 6px 4px;
+}
+
+.wg-header.sat { color: #2980b9; }
+.wg-header.sun { color: #e74c3c; }
+
+.wg-header.today-col {
+  background: #d0e8f8;
+}
+
+.wg-label {
+  background: #f8f8f8;
+  font-size: 11px;
+  color: #555;
+  text-align: right;
+  padding: 4px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.wg-label .wg-time { font-size: 10px; color: #999; }
+
+.wg-cell.special { background: #f5f5f5; }
+
+.wg-cell.clickable {
+  cursor: pointer;
+  min-height: 48px;
+}
+
+.wg-cell.clickable:hover { background: #f0f7ff; }
+
+.wg-cell-content { font-size: 12px; line-height: 1.4; }
+.wg-cell-content .wg-subj { font-weight: bold; }
+.wg-cell-content .wg-room { color: #888; font-size: 11px; }
+.wg-cell-content .wg-ctype { font-size: 10px; }
+
+.wg-cell-content.type-授業 { color: #2e7d32; }
+.wg-cell-content.type-行事 { color: #7b1fa2; }
+.wg-cell-content.type-校務 { color: #e65100; }
+.wg-cell-content.type-空きコマ { color: #aaa; }
+
+.wg-modified {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 7px;
+  height: 7px;
+  background: #e74c3c;
+  border-radius: 50%;
+}
+
+.wg-memo-row .wg-cell {
+  background: #fffde7;
+  font-size: 11px;
+  color: #666;
+  cursor: pointer;
+  min-height: 28px;
+  padding: 3px 4px;
+}
+
+.wg-memo-row .wg-cell:hover { background: #fff9c4; }
+
+.wg-date-num { font-size: 13px; font-weight: bold; }
+
+/* ========== DEADLINE ========== */
+.deadline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dl-item {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dl-item.done {
+  opacity: 0.5;
+}
+
+.dl-item.source-todo {
+  border-color: #2980b9;
+  border-width: 2px;
+}
+
+.dl-check { cursor: pointer; width: 18px; height: 18px; accent-color: #2980b9; }
+
+.dl-info { flex: 1; }
+.dl-name { font-weight: bold; font-size: 14px; }
+.dl-name.done { text-decoration: line-through; }
+.dl-subject { font-size: 12px; color: #777; }
+.dl-due { font-size: 12px; color: #555; }
+
+.dl-countdown {
+  font-size: 12px;
+  font-weight: bold;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: #eee;
+  white-space: nowrap;
+}
+
+.dl-countdown.urgent { background: #FF9800; color: #fff; }
+.dl-countdown.overdue { background: #F44336; color: #fff; }
+
+.dl-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  background: #2980b9;
+  color: #fff;
+  border-radius: 4px;
+}
+
+.dl-delete {
+  background: none;
+  border: none;
+  color: #ccc;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px 4px;
+}
+
+.dl-delete:hover { color: #e74c3c; }
+
+.dl-empty {
+  text-align: center;
+  color: #aaa;
+  padding: 32px;
+}
+
+/* ========== SHARED CALENDAR ========== */
+.shared-form { margin-bottom: 16px; }
+.shared-form h3 { margin-bottom: 12px; font-size: 14px; }
+
+.shared-list { display: flex; flex-direction: column; gap: 8px; }
+
+.shared-item {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.shared-info { flex: 1; }
+.shared-name { font-weight: bold; font-size: 14px; }
+.shared-id { font-size: 11px; color: #aaa; word-break: break-all; }
+.shared-type-badge {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+}
+
+.shared-type-badge.ical {
+  background: #e3f2fd;
+  color: #1565c0;
+  border-color: #90caf9;
+}
+
+/* ========== MODALS ========== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal-box {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  width: 100%;
+  max-width: 400px;
+  position: relative;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+
+.modal-box h3 {
+  font-size: 16px;
+  margin-bottom: 14px;
+  color: #2c3e50;
+}
+
+.modal-close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  font-size: 22px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #aaa;
+  line-height: 1;
+}
+
+.modal-close:hover { color: #333; }
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.popup-meta { font-size: 13px; color: #666; margin-bottom: 4px; }
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 768px) {
+  main { padding: 8px; }
+
+  .cal-day { min-height: 60px; }
+  .cal-event { font-size: 10px; }
+
+  .week-grid {
+    grid-template-columns: 54px 1fr 1fr 1fr 1fr 1fr 0.5fr 0.5fr;
+    min-width: 440px;
+    font-size: 11px;
+  }
+
+  .section-header { flex-direction: column; align-items: flex-start; }
+  .nav-row h2 { min-width: 120px; font-size: 14px; }
+}
+
+@media (max-width: 480px) {
+  header h1 { font-size: 15px; }
+  .tab-btn { font-size: 11px; padding: 8px 4px; }
+
+  .week-grid {
+    grid-template-columns: 50px 1fr 1fr 1fr 1fr 1fr 0.4fr 0.4fr;
+    min-width: 380px;
+    font-size: 10px;
+  }
+}

@@ -1,918 +1,246 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>教員スケジュール帳</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5;color:#1a1a1a;font-size:14px}
-.container{max-width:960px;margin:0 auto;padding:1rem}
-h1{font-size:18px;font-weight:500;margin-bottom:1rem;color:#1a1a1a}
-.status-bar{display:flex;align-items:center;gap:8px;font-size:13px;padding:8px 12px;border-radius:8px;margin-bottom:1rem}
-.status-bar.connected{background:#EAF3DE;color:#27500A}
-.status-bar.disconnected{background:#FCEBEB;color:#791F1F}
-.dot{width:8px;height:8px;border-radius:50%;background:currentColor;flex-shrink:0}
-.tabs{display:flex;gap:4px;margin-bottom:1.5rem;border-bottom:1px solid #e0e0e0;flex-wrap:wrap}
-.tab{padding:8px 16px;font-size:13px;cursor:pointer;border:none;background:none;color:#666;border-bottom:2px solid transparent;margin-bottom:-1px}
-.tab.active{color:#1a1a1a;font-weight:500;border-bottom:2px solid #1a1a1a}
-.sec{display:none}.sec.active{display:block}
-button{cursor:pointer;font-family:inherit}
-.nav-btn{background:none;border:1px solid #ccc;border-radius:8px;padding:4px 12px;font-size:13px;color:#1a1a1a}
-.nav-btn:hover{background:#f0f0f0}
-.add-btn{background:#1a1a1a;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:13px}
-.add-btn:hover{background:#333}
-.sync-btn{background:none;border:1px solid #ccc;border-radius:8px;padding:6px 12px;font-size:12px;color:#1a1a1a}
-.sync-btn:hover{background:#f0f0f0}
-.form-row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:1rem}
-.form-row label{font-size:12px;color:#666;display:block;margin-bottom:3px}
-.form-row input,.form-row select,
-.modal input,.modal select,.modal textarea{font-size:13px;padding:6px 10px;border:1px solid #ccc;border-radius:8px;background:#fff;color:#1a1a1a;font-family:inherit}
-.modal input,.modal select,.modal textarea{width:100%;margin-bottom:8px}
-.modal textarea{resize:vertical;min-height:70px}
-.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
-.cal-header h2{font-size:15px;font-weight:500}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
-.cal-dow{font-size:11px;color:#888;text-align:center;padding:4px 0}
-.cal-cell{min-height:72px;padding:4px;border:1px solid #e8e8e8;border-radius:8px;background:#fff;font-size:11px}
-.cal-cell.today{border:2px solid #378ADD}
-.cal-cell.cal-sat .dn{color:#5b9bd5}
-.cal-cell.cal-sun .dn{color:#e06c6c}
-.cal-cell.other .dn{color:#bbb}
-.dn{font-size:12px;font-weight:500;margin-bottom:2px}
-.ev{border-radius:3px;padding:1px 4px;margin-bottom:1px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.ev-lesson{background:#E6F1FB;color:#0C447C}
-.ev-event{background:#EAF3DE;color:#27500A}
-.ev-school{background:#EEEDFE;color:#3C3489}
-.ev-deadline{background:#FCEBEB;color:#791F1F}
-.legend{display:flex;gap:10px;margin-bottom:1rem;flex-wrap:wrap}
-.li{display:flex;align-items:center;gap:4px;font-size:11px;color:#666}
-.ld{width:10px;height:10px;border-radius:2px}
-.tt-grid{display:grid;grid-template-columns:60px repeat(5,1fr);gap:3px}
-.tt-head{font-size:12px;font-weight:500;text-align:center;padding:6px;background:#f0f0f0;border-radius:8px;color:#555}
-.tt-period{font-size:11px;text-align:center;padding:5px;background:#f0f0f0;border-radius:8px;color:#555;line-height:1.4}
-.tt-cell{min-height:58px;border:1px solid #e8e8e8;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;cursor:pointer;text-align:center;padding:4px;background:#fff;color:#aaa}
-.tt-cell:hover{background:#f9f9f9}
-.tt-cell.y1{background:#E6EAF8;color:#3C3489}
-.tt-cell.y2{background:#E6F1FB;color:#0C447C}
-.tt-cell.y3{background:#FCEBEB;color:#791F1F}
-.tt-subj{font-weight:500;font-size:12px}
-.tt-room{font-size:10px;margin-top:1px;opacity:0.8}
-.week-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.week-nav h3{font-size:14px;font-weight:500}
-.week-outer{overflow-x:auto}
-.wk-head-wrap{display:grid;grid-template-columns:52px repeat(5,1fr) repeat(2,0.5fr);gap:3px;min-width:560px;margin-bottom:3px}
-.week-grid{display:grid;grid-template-columns:52px repeat(5,1fr) repeat(2,0.5fr);gap:3px;min-width:560px}
-.wk-blank{height:32px}
-.wk-head{border-radius:8px;overflow:hidden;border:1px solid #e8e8e8}
-.wk-head.is-today .wk-head-top{background:#E6F1FB;color:#0C447C}
-.wk-head-top{font-size:11px;font-weight:500;padding:5px 3px;background:#f0f0f0;color:#555;text-align:center;line-height:1.4}
-.wk-head-memo{padding:3px;background:#fff;min-height:36px}
-.wk-memo-text{font-size:10px;color:#555;line-height:1.4;cursor:pointer;min-height:28px;padding:2px;white-space:pre-wrap;border-radius:3px}
-.wk-memo-text:hover{background:#f5f5f5}
-.wk-memo-empty{font-size:10px;color:#bbb;cursor:pointer;padding:2px;min-height:28px;display:flex;align-items:center;justify-content:center;border-radius:3px}
-.wk-memo-empty:hover{background:#f5f5f5}
-.wk-period{font-size:10px;text-align:center;padding:4px 2px;background:#f0f0f0;border-radius:8px;color:#555;line-height:1.3}
-.wk-cell{min-height:56px;border:1px solid #e8e8e8;border-radius:8px;padding:4px;font-size:10px;cursor:pointer;background:#fff;position:relative}
-.wk-cell:hover{background:#f9f9f9}
-.wk-cell.y1{background:#E6EAF8}.wk-cell.y1 .wc-subj{color:#3C3489}
-.wk-cell.y2{background:#E6F1FB}.wk-cell.y2 .wc-subj{color:#0C447C}
-.wk-cell.y3{background:#FCEBEB}.wk-cell.y3 .wc-subj{color:#791F1F}
-.wk-cell.ev-event{background:#EAF3DE}.wk-cell.ev-event .wc-subj{color:#27500A}
-.wk-cell.ev-school{background:#EEEDFE}.wk-cell.ev-school .wc-subj{color:#3C3489}
-.wk-cell.modified::after{content:'';position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;background:#E24B4A}
-.wk-cell.wk-special{background:#f5f5f5;min-height:44px}
-.wc-subj{font-weight:500;font-size:11px}
-.wc-room{font-size:10px;opacity:0.75;margin-top:1px}
-.wc-note{font-size:10px;opacity:0.65;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dl-list{display:flex;flex-direction:column;gap:8px}
-.dl-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid #e8e8e8;border-radius:8px;background:#fff}
-.dl-item.done{opacity:0.45}
-.dl-item.from-tasks{border-left:3px solid #378ADD}
-.dl-item input[type=checkbox]{width:15px;height:15px;cursor:pointer;flex-shrink:0}
-.dl-info{flex:1;min-width:0}
-.dl-title{font-size:13px;font-weight:500}
-.dl-meta{font-size:11px;color:#888;margin-top:2px}
-.dl-days{font-size:11px;font-weight:500;text-align:right;white-space:nowrap}
-.over{color:#A32D2D}.ok{color:#3B6D11}.soon{color:#854F0B}
-.del-btn{background:none;border:none;font-size:14px;color:#aaa;flex-shrink:0;padding:2px 4px}
-.del-btn:hover{color:#666}
-.tasks-badge{font-size:10px;padding:1px 6px;background:#E6F1FB;color:#0C447C;border-radius:3px;margin-left:4px}
-.grade-legend{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center}
-.g-tag{font-size:11px;padding:2px 8px;border-radius:4px}
-.g1{background:#E6EAF8;color:#3C3489}.g2{background:#E6F1FB;color:#0C447C}.g3{background:#FCEBEB;color:#791F1F}
-.cal-list{display:flex;flex-direction:column;gap:8px;margin-bottom:1rem}
-.cal-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid #e8e8e8;border-radius:8px;background:#fff}
-.cal-item-info{flex:1;min-width:0}
-.cal-item-name{font-size:13px;font-weight:500}
-.cal-item-id{font-size:11px;color:#888;margin-top:2px;word-break:break-all}
-.cal-item-type{font-size:10px;padding:2px 6px;border-radius:4px;flex-shrink:0}
-.type-api{background:#E6F1FB;color:#0C447C}
-.type-ics{background:#EAF3DE;color:#27500A}
-.section-title{font-size:14px;font-weight:500;margin-bottom:10px;margin-top:1.5rem}
-.section-title:first-child{margin-top:0}
-.info-box{background:#f9f9f9;border:1px solid #e8e8e8;border-radius:8px;padding:12px;font-size:12px;color:#555;line-height:1.7;margin-bottom:1rem}
-.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:100;align-items:center;justify-content:center}
-.overlay.open{display:flex}
-.modal{background:#fff;border-radius:12px;padding:1.5rem;width:320px;box-shadow:0 4px 24px rgba(0,0,0,0.15)}
-.modal h3{font-size:15px;font-weight:500;margin-bottom:14px}
-.modal label{font-size:12px;color:#666;display:block;margin-bottom:3px}
-.modal-btns{display:flex;gap:8px;margin-top:8px}
-.modal-btns button{flex:1;padding:8px;border-radius:8px;font-size:13px}
-.btn-c{background:none;border:1px solid #ccc;color:#666}
-.btn-c:hover{background:#f0f0f0}
-.btn-s{background:#1a1a1a;color:#fff;border:none}
-.btn-s:hover{background:#333}
-.btn-clr{background:none;border:1px solid #ffaaaa;color:#A32D2D}
-.btn-clr:hover{background:#fff5f5}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>教員スケジューラ</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div class="container">
-<h1>教員スケジュール帳</h1>
 
-<div id="auth-status" class="status-bar disconnected">
-  <div class="dot"></div>
-  <span id="auth-label">Google Calendar / Tasks に未接続</span>
-  <button class="sync-btn" style="margin-left:auto" onclick="signIn()">Googleでログイン</button>
-</div>
-
-<div class="tabs">
-  <button class="tab active" onclick="showTab('cal')">カレンダー</button>
-  <button class="tab" onclick="showTab('tt')">時間割（基本）</button>
-  <button class="tab" onclick="showTab('week')">週間スケジュール</button>
-  <button class="tab" onclick="showTab('dl')">提出物・締切</button>
-  <button class="tab" onclick="showTab('shared')">共有カレンダー設定</button>
-</div>
-
-<!-- カレンダー -->
-<div id="sec-cal" class="sec active">
-  <div class="legend">
-    <div class="li"><div class="ld" style="background:#B5D4F4"></div>授業</div>
-    <div class="li"><div class="ld" style="background:#C0DD97"></div>行事</div>
-    <div class="li"><div class="ld" style="background:#CECBF6"></div>校務</div>
-    <div class="li"><div class="ld" style="background:#F7C1C1"></div>締切</div>
+<header>
+  <div class="header-left">
+    <h1>教員スケジューラ</h1>
   </div>
-  <div class="cal-header">
-    <button class="nav-btn" onclick="changeMonth(-1)">&#8249;</button>
-    <h2 id="cal-title"></h2>
-    <div style="display:flex;gap:6px">
-      <button class="sync-btn" onclick="syncFromGCal()">GCal取得</button>
-      <button class="nav-btn" onclick="changeMonth(1)">&#8250;</button>
+  <div class="header-right" id="status-bar">
+    <span id="gcal-status" class="status-badge">未接続</span>
+    <button id="gcal-connect-btn" class="btn btn-sm">Google連携</button>
+    <button id="gcal-disconnect-btn" class="btn btn-sm btn-danger" style="display:none">切断</button>
+  </div>
+</header>
+
+<nav class="tab-nav">
+  <button class="tab-btn active" data-tab="calendar">カレンダー</button>
+  <button class="tab-btn" data-tab="timetable">時間割</button>
+  <button class="tab-btn" data-tab="week">週間スケジュール</button>
+  <button class="tab-btn" data-tab="deadline">提出物・締切</button>
+  <button class="tab-btn" data-tab="shared">共有カレンダー</button>
+</nav>
+
+<main>
+
+  <!-- ===== カレンダー ===== -->
+  <section id="tab-calendar" class="tab-content active">
+    <div class="section-header">
+      <div class="nav-row">
+        <button id="cal-prev" class="btn btn-icon">&#8249;</button>
+        <h2 id="cal-title"></h2>
+        <button id="cal-next" class="btn btn-icon">&#8250;</button>
+      </div>
+      <div class="action-row">
+        <button id="gcal-fetch-btn" class="btn btn-sm">GCal取得</button>
+        <button id="gcal-send-btn" class="btn btn-sm">GCal送信</button>
+        <button id="add-event-btn" class="btn btn-primary btn-sm">＋追加</button>
+      </div>
+    </div>
+    <div class="cal-weekdays">
+      <div class="cal-wd">月</div><div class="cal-wd">火</div><div class="cal-wd">水</div>
+      <div class="cal-wd">木</div><div class="cal-wd">金</div>
+      <div class="cal-wd sat">土</div><div class="cal-wd sun">日</div>
+    </div>
+    <div id="calendar-grid" class="calendar-grid"></div>
+  </section>
+
+  <!-- ===== 時間割 ===== -->
+  <section id="tab-timetable" class="tab-content">
+    <div class="section-header">
+      <h2>基本時間割</h2>
+      <span class="legend">
+        <span class="legend-item" style="background:#E6EAF8">1年</span>
+        <span class="legend-item" style="background:#E6F1FB">2年</span>
+        <span class="legend-item" style="background:#FCEBEB">3年</span>
+      </span>
+    </div>
+    <div id="timetable-grid" class="timetable-grid"></div>
+  </section>
+
+  <!-- ===== 週間スケジュール ===== -->
+  <section id="tab-week" class="tab-content">
+    <div class="section-header">
+      <div class="nav-row">
+        <button id="week-prev" class="btn btn-icon">&#8249;</button>
+        <h2 id="week-title"></h2>
+        <button id="week-next" class="btn btn-icon">&#8250;</button>
+      </div>
+      <button id="week-reset" class="btn btn-sm">基本に戻す</button>
+    </div>
+    <div id="week-grid-wrap" class="week-grid-wrap">
+      <div id="week-grid" class="week-grid"></div>
+    </div>
+  </section>
+
+  <!-- ===== 提出物・締切 ===== -->
+  <section id="tab-deadline" class="tab-content">
+    <div class="section-header">
+      <h2>提出物・締切</h2>
+      <div class="action-row">
+        <button id="todo-sync-btn" class="btn btn-sm">ToDo同期</button>
+        <button id="add-dl-btn" class="btn btn-primary btn-sm">＋追加</button>
+      </div>
+    </div>
+    <div id="deadline-list" class="deadline-list"></div>
+  </section>
+
+  <!-- ===== 共有カレンダー ===== -->
+  <section id="tab-shared" class="tab-content">
+    <div class="section-header"><h2>共有カレンダー設定</h2></div>
+    <div class="shared-form card">
+      <h3>カレンダー追加</h3>
+      <div class="form-row">
+        <label>名前<input type="text" id="shared-name" placeholder="表示名"></label>
+      </div>
+      <div class="form-row radio-row">
+        <label><input type="radio" name="shared-type" value="gcal" checked> Google Calendar ID</label>
+        <label><input type="radio" name="shared-type" value="ical"> iCal URL</label>
+      </div>
+      <div id="shared-gcal-input" class="form-row">
+        <label>カレンダーID<input type="text" id="shared-cal-id" placeholder="xxxx@group.calendar.google.com"></label>
+      </div>
+      <div id="shared-ical-input" class="form-row" style="display:none">
+        <label>iCal URL<input type="text" id="shared-ical-url" placeholder="https://calendar.google.com/calendar/ical/..."></label>
+      </div>
+      <button id="shared-add-btn" class="btn btn-primary">追加</button>
+    </div>
+    <div id="shared-list" class="shared-list"></div>
+  </section>
+
+</main>
+
+<!-- ===== モーダル：イベントポップアップ ===== -->
+<div id="event-popup" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <button class="modal-close" id="popup-close">&times;</button>
+    <h3 id="popup-title"></h3>
+    <p id="popup-date" class="popup-meta"></p>
+    <p id="popup-type" class="popup-meta"></p>
+    <button id="popup-delete" class="btn btn-danger btn-sm">アプリから削除</button>
+  </div>
+</div>
+
+<!-- ===== モーダル：イベント追加/編集 ===== -->
+<div id="event-modal" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <button class="modal-close" id="event-modal-close">&times;</button>
+    <h3 id="event-modal-title">イベント追加</h3>
+    <div class="form-row"><label>タイトル<input type="text" id="em-title"></label></div>
+    <div class="form-row"><label>日付<input type="date" id="em-date"></label></div>
+    <div class="form-row">
+      <label>種別
+        <select id="em-type">
+          <option value="授業">授業</option>
+          <option value="行事">行事</option>
+          <option value="校務">校務</option>
+          <option value="締切">締切</option>
+        </select>
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button id="em-save" class="btn btn-primary">保存</button>
+      <button id="em-cancel" class="btn">キャンセル</button>
     </div>
   </div>
-  <div class="cal-grid" id="cal-grid">
-    <div class="cal-dow">月</div><div class="cal-dow">火</div><div class="cal-dow">水</div>
-    <div class="cal-dow">木</div><div class="cal-dow">金</div><div class="cal-dow" style="color:#5b9bd5">土</div><div class="cal-dow" style="color:#e06c6c">日</div>
-  </div>
-  <div class="form-row">
-    <div><label>日付</label><input type="date" id="ev-date"></div>
-    <div><label>タイトル</label><input type="text" id="ev-title" placeholder="例: 定期考査" style="width:140px"></div>
-    <div><label>種別</label>
-      <select id="ev-type">
-        <option value="lesson">授業</option>
-        <option value="event">行事</option>
-        <option value="school">校務</option>
-        <option value="deadline">締切</option>
-      </select>
-    </div>
-    <div><button class="add-btn" onclick="addEvent()">追加</button></div>
-    <div><button class="sync-btn" onclick="pushToGCal()">GCalに送信</button></div>
-  </div>
 </div>
 
-<!-- 時間割 -->
-<div id="sec-tt" class="sec">
-  <div class="grade-legend">
-    <span class="g-tag g1">1年 紺</span>
-    <span class="g-tag g2">2年 青</span>
-    <span class="g-tag g3">3年 赤</span>
-    <span style="font-size:11px;color:#aaa;margin-left:4px">セルをクリックして編集</span>
-  </div>
-  <div class="tt-grid" id="tt-grid"></div>
-</div>
-
-<!-- 週間スケジュール -->
-<div id="sec-week" class="sec">
-  <div class="week-nav">
-    <button class="nav-btn" onclick="changeWeek(-1)">&#8249;</button>
-    <h3 id="week-title"></h3>
-    <div style="display:flex;gap:6px">
-      <button class="sync-btn" onclick="syncWeekFromGCal()">GCal取得</button>
-      <button class="sync-btn" onclick="resetWeekOverrides()">基本に戻す</button>
-      <button class="nav-btn" onclick="changeWeek(1)">&#8250;</button>
-    </div>
-  </div>
-  <p style="font-size:11px;color:#888;margin-bottom:6px">日付下のメモ欄をクリックして予定・時間変更を記入。赤丸は基本時間割からの変更。</p>
-  <div class="week-outer">
-    <div class="wk-head-wrap" id="wk-head-wrap"></div>
-    <div class="week-grid" id="week-grid"></div>
-  </div>
-</div>
-
-<!-- 提出物・締切 -->
-<div id="sec-dl" class="sec">
-  <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
-    <button class="sync-btn" onclick="syncFromTasks()">Google ToDoから同期</button>
-    <span style="font-size:11px;color:#888">青枠 = ToDoリストから取得</span>
-  </div>
-  <div class="form-row" style="margin-top:0;margin-bottom:1rem">
-    <div><label>タスク名</label><input type="text" id="dl-title" placeholder="例: 1A 小テスト採点" style="width:180px"></div>
-    <div><label>科目・クラス</label><input type="text" id="dl-class" placeholder="数学I / 1A" style="width:130px"></div>
-    <div><label>締切日</label><input type="date" id="dl-date"></div>
-    <div><button class="add-btn" onclick="addDeadline()">追加</button></div>
-  </div>
-  <div class="dl-list" id="dl-list"></div>
-</div>
-
-<!-- 共有カレンダー設定 -->
-<div id="sec-shared" class="sec">
-  <div class="info-box">
-    カレンダーIDまたはiCal URL（.ics）を登録すると、「カレンダー」タブの「GCal取得」時に共有カレンダーのイベントも取り込まれます。<br>
-    カレンダーID形式: <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="651d1d1d1d2502170a10154b060409000b0104174b020a0a0209004b060a08">[email&#160;protected]</a></code><br>
-    iCal URL形式: <code>https://calendar.google.com/calendar/ical/xxxx/public/basic.ics</code>
-  </div>
-  <div class="section-title">カレンダーIDで追加（Google Calendar API・要ログイン）</div>
-  <div class="form-row" style="margin-top:0;margin-bottom:1rem">
-    <div><label>カレンダー名（任意）</label><input type="text" id="sc-name" placeholder="例: 学校行事" style="width:130px"></div>
-    <div><label>カレンダーID</label><input type="text" id="sc-id" placeholder="xxxx@group.calendar.google.com" style="width:250px"></div>
-    <div><button class="add-btn" onclick="addSharedCal('api')">追加</button></div>
-  </div>
-  <div class="section-title">iCal URL（.ics）で追加（ログイン不要）</div>
-  <div class="form-row" style="margin-top:0;margin-bottom:1rem">
-    <div><label>カレンダー名（任意）</label><input type="text" id="sc-ics-name" placeholder="例: 校務分掌" style="width:130px"></div>
-    <div><label>iCal URL</label><input type="text" id="sc-ics-url" placeholder="https://calendar.google.com/calendar/ical/..." style="width:250px"></div>
-    <div><button class="add-btn" onclick="addSharedCal('ics')">追加</button></div>
-  </div>
-  <div class="section-title">登録済み共有カレンダー</div>
-  <div class="cal-list" id="shared-cal-list"></div>
-  <div style="margin-top:1rem">
-    <button class="sync-btn" onclick="syncAllSharedCals()">登録済みカレンダーをすべて取得</button>
-  </div>
-</div>
-</div>
-
-<!-- 時間割編集モーダル -->
-<div class="overlay" id="tt-modal">
-  <div class="modal">
+<!-- ===== モーダル：時間割編集 ===== -->
+<div id="tt-modal" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <button class="modal-close" id="tt-modal-close">&times;</button>
     <h3 id="tt-modal-title">時間割編集</h3>
-    <label>学年</label>
-    <select id="tm-grade">
-      <option value="">なし</option>
-      <option value="y1">1年（紺）</option>
-      <option value="y2">2年（青）</option>
-      <option value="y3">3年（赤）</option>
-    </select>
-    <label>科目名</label>
-    <input type="text" id="tm-subj" placeholder="例: 数学I">
-    <label>教室</label>
-    <input type="text" id="tm-room" placeholder="例: 1-A教室">
-    <div class="modal-btns">
-      <button class="btn-c" onclick="closeTTModal()">キャンセル</button>
-      <button class="btn-s" onclick="saveTTCell()">保存</button>
+    <div class="form-row"><label>科目<input type="text" id="tm-subject" placeholder="数学"></label></div>
+    <div class="form-row"><label>教室<input type="text" id="tm-room" placeholder="1A"></label></div>
+    <div class="form-row">
+      <label>学年
+        <select id="tm-grade">
+          <option value="0">なし</option>
+          <option value="1">1年</option>
+          <option value="2">2年</option>
+          <option value="3">3年</option>
+        </select>
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button id="tm-save" class="btn btn-primary">保存</button>
+      <button id="tm-cancel" class="btn">キャンセル</button>
     </div>
   </div>
 </div>
 
-<!-- 週間セル編集モーダル -->
-<div class="overlay" id="wk-modal">
-  <div class="modal">
-    <h3 id="wk-modal-title">スケジュール編集</h3>
-    <label>種別</label>
-    <select id="wm-type" onchange="toggleWkFields()">
-      <option value="lesson">授業</option>
-      <option value="event">行事</option>
-      <option value="school">校務</option>
-      <option value="empty">空きコマ</option>
-    </select>
-    <div id="wm-lesson-fields">
-      <label>学年</label>
-      <select id="wm-grade">
-        <option value="">なし</option>
-        <option value="y1">1年（紺）</option>
-        <option value="y2">2年（青）</option>
-        <option value="y3">3年（赤）</option>
-      </select>
-      <label>科目名</label>
-      <input type="text" id="wm-subj" placeholder="例: 数学I">
-      <label>教室</label>
-      <input type="text" id="wm-room" placeholder="例: 1-A教室">
+<!-- ===== モーダル：週間スケジュール編集 ===== -->
+<div id="week-modal" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <button class="modal-close" id="week-modal-close">&times;</button>
+    <h3 id="week-modal-title">スケジュール編集</h3>
+    <div class="form-row"><label>内容<input type="text" id="wm-content" placeholder="科目名・内容"></label></div>
+    <div class="form-row"><label>教室<input type="text" id="wm-room" placeholder="教室（任意）"></label></div>
+    <div class="form-row">
+      <label>種別
+        <select id="wm-type">
+          <option value="授業">授業</option>
+          <option value="行事">行事</option>
+          <option value="校務">校務</option>
+          <option value="空きコマ">空きコマ</option>
+        </select>
+      </label>
     </div>
-    <div id="wm-event-fields" style="display:none">
-      <label>内容</label>
-      <input type="text" id="wm-evtitle" placeholder="例: 文化祭準備">
-      <label>場所</label>
-      <input type="text" id="wm-evplace" placeholder="例: 体育館">
-      <label>備考</label>
-      <textarea id="wm-evnote" placeholder="例: 全学年参加"></textarea>
-    </div>
-    <div class="modal-btns">
-      <button class="btn-clr" onclick="clearWkCell()">クリア</button>
-      <button class="btn-c" onclick="closeWkModal()">キャンセル</button>
-      <button class="btn-s" onclick="saveWkCell()">保存</button>
+    <div class="modal-actions">
+      <button id="wm-save" class="btn btn-primary">保存</button>
+      <button id="wm-clear" class="btn btn-danger">クリア</button>
+      <button id="wm-cancel" class="btn">キャンセル</button>
     </div>
   </div>
 </div>
 
-<!-- メモ編集モーダル -->
-<div class="overlay" id="memo-modal">
-  <div class="modal">
-    <h3 id="memo-modal-title">その日のメモ・時間変更</h3>
-    <label>時間変更・特記事項</label>
-    <textarea id="memo-text" placeholder="例：短縮授業（各45分）&#10;1限 8:30〜9:15&#10;全学年 体育館集合10:00" style="min-height:100px"></textarea>
-    <div class="modal-btns">
-      <button class="btn-clr" onclick="clearMemo()">クリア</button>
-      <button class="btn-c" onclick="closeMemoModal()">キャンセル</button>
-      <button class="btn-s" onclick="saveMemo()">保存</button>
+<!-- ===== モーダル：提出物追加 ===== -->
+<div id="dl-modal" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <button class="modal-close" id="dl-modal-close">&times;</button>
+    <h3>提出物・締切追加</h3>
+    <div class="form-row"><label>タスク名<input type="text" id="dm-name"></label></div>
+    <div class="form-row"><label>科目・クラス<input type="text" id="dm-subject" placeholder="数学 1A"></label></div>
+    <div class="form-row"><label>締切日<input type="date" id="dm-due"></label></div>
+    <div class="modal-actions">
+      <button id="dm-save" class="btn btn-primary">保存</button>
+      <button id="dm-cancel" class="btn">キャンセル</button>
     </div>
   </div>
 </div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
-<!-- イベント全文ポップアップ -->
-<div class="overlay" id="ev-popup">
-  <div class="modal" style="max-width:340px">
-    <h3 id="ev-popup-date" style="font-size:13px;color:#888;font-weight:400;margin-bottom:6px"></h3>
-    <p id="ev-popup-title" style="font-size:14px;line-height:1.7;word-break:break-all;margin-bottom:14px"></p>
-    <div class="modal-btns">
-      <button class="btn-clr" onclick="deleteCurrentEvent()">このアプリから削除</button>
-      <button class="btn-s" onclick="closeEvPopup()">閉じる</button>
+<!-- ===== モーダル：メモ編集 ===== -->
+<div id="memo-modal" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <button class="modal-close" id="memo-modal-close">&times;</button>
+    <h3 id="memo-modal-date"></h3>
+    <div class="form-row">
+      <label>メモ<textarea id="memo-text" rows="4" style="width:100%"></textarea></label>
+    </div>
+    <div class="modal-actions">
+      <button id="memo-save" class="btn btn-primary">保存</button>
+      <button id="memo-cancel" class="btn">キャンセル</button>
     </div>
   </div>
 </div>
-<script>
-const CLIENT_ID = '116307121637-ev8bq1td5q8v6v11f5dtmo9u53nqtft2.apps.googleusercontent.com';
-const SCOPES = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks';
-let accessToken = null;
-let events = JSON.parse(localStorage.getItem('sch_ev') || '[]');
-let timetable = JSON.parse(localStorage.getItem('sch_tt') || '{}');
-let deadlines = JSON.parse(localStorage.getItem('sch_dl') || '[]');
-let weekOverrides = JSON.parse(localStorage.getItem('sch_wov') || '{}');
-let dayMemos = JSON.parse(localStorage.getItem('sch_memo') || '{}');
-let sharedCals = JSON.parse(localStorage.getItem('sch_shared') || '[]');
-let cur = new Date(), weekBase = getMonday(new Date());
-let editTTKey = null, editWkKey = null, editMemoKey = null;
-const PERIODS = [
-  {l:'朝SHR', t:'8:55',  special:true},
-  {l:'1校時', t:'9:20',  special:false},
-  {l:'2校時', t:'10:20', special:false},
-  {l:'3校時', t:'11:20', special:false},
-  {l:'昼休み',t:'12:10', special:true},
-  {l:'4校時', t:'13:00', special:false},
-  {l:'5校時', t:'14:00', special:false},
-  {l:'6校時', t:'15:00', special:false},
-  {l:'放課後', t:'16:10', special:true},
-  {l:'時間外', t:'17:00', special:true},
-];
-// 時間割（基本）に使う校時のみ（朝SHR・昼休み・放課後・時間外を除く）
-const TT_PERIODS = PERIODS.filter(p => !p.special);
-const WDAYS = ['月','火','水','木','金','土','日'];
-const WDAY_STYLES = ['','','','','','color:#5b9bd5','color:#e06c6c'];
-const TT_WDAYS = ['月','火','水','木','金'];
 
-function save() {
-  localStorage.setItem('sch_ev', JSON.stringify(events));
-  localStorage.setItem('sch_tt', JSON.stringify(timetable));
-  localStorage.setItem('sch_dl', JSON.stringify(deadlines));
-  localStorage.setItem('sch_wov', JSON.stringify(weekOverrides));
-  localStorage.setItem('sch_memo', JSON.stringify(dayMemos));
-  localStorage.setItem('sch_shared', JSON.stringify(sharedCals));
-}
-function fmt(d) { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
-function getMonday(d) { const m = new Date(d); const day = m.getDay(); m.setDate(m.getDate()-day+(day===0?-6:1)); m.setHours(0,0,0,0); return m; }
+<!-- Google API -->
+<script src="https://apis.google.com/js/api.js" async defer></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 
-function loadGapi() {
-  return new Promise(res => {
-    if (window.gapi) { res(); return; }
-    const s = document.createElement('script');
-    s.src = 'https://apis.google.com/js/api.js';
-    s.onload = () => gapi.load('client', () => gapi.client.init({}).then(() => res()));
-    document.head.appendChild(s);
-  });
-}
-function loadGis() {
-  return new Promise(res => {
-    if (window.google && google.accounts) { res(); return; }
-    const s = document.createElement('script');
-    s.src = 'https://accounts.google.com/gsi/client';
-    s.onload = () => res();
-    document.head.appendChild(s);
-  });
-}
-async function signIn() {
-  try {
-    await loadGapi(); await loadGis();
-    const tc = google.accounts.oauth2.initTokenClient({
-      client_id: CLIENT_ID, scope: SCOPES,
-      callback: (r) => {
-        if (r.error) { alert('認証エラー: ' + r.error); return; }
-        accessToken = r.access_token;
-        gapi.client.setToken({ access_token: accessToken });
-        setConnected(true);
-      }
-    });
-    tc.requestAccessToken();
-  } catch(e) { alert('Google認証に失敗しました。\nポップアップブロックを解除してください。\n\n' + e.message); }
-}
-function signOut() {
-  if (accessToken && window.google) google.accounts.oauth2.revoke(accessToken);
-  accessToken = null; setConnected(false);
-}
-function setConnected(ok) {
-  const bar = document.getElementById('auth-status');
-  bar.className = 'status-bar ' + (ok ? 'connected' : 'disconnected');
-  document.getElementById('auth-label').textContent = ok ? 'Google Calendar / Tasks に接続中' : 'Google Calendar / Tasks に未接続';
-  const btn = bar.querySelector('button');
-  btn.textContent = ok ? 'ログアウト' : 'Googleでログイン';
-  btn.onclick = ok ? signOut : signIn;
-}
-
-async function pushToGCal() {
-  if (!accessToken) { alert('先にGoogleでログインしてください'); return; }
-  if (!events.length) { alert('送信するイベントがありません'); return; }
-  const tm = {lesson:'授業',event:'行事',school:'校務',deadline:'締切'};
-  let ok = 0, fail = 0;
-  for (const ev of events) {
-    try {
-      await gapi.client.request({ path:'https://www.googleapis.com/calendar/v3/calendars/primary/events', method:'POST',
-        body: JSON.stringify({ summary: '['+tm[ev.type]+'] '+ev.title, start:{date:ev.date}, end:{date:ev.date} }) });
-      ok++;
-    } catch(e) { fail++; }
-  }
-  alert('送信完了\n成功: '+ok+'件'+(fail?'\n失敗: '+fail+'件':''));
-}
-
-async function syncFromGCal() {
-  if (!accessToken) { alert('先にGoogleでログインしてください'); return; }
-  const y = cur.getFullYear(), m = cur.getMonth();
-  const tMin = new Date(y,m,1).toISOString();
-  const tMax = new Date(y,m+1,0,23,59,59).toISOString();
-  // 当月のGCal由来イベントを一旦削除してから再取得（リフレッシュ）
-  const mStr = y+'-'+String(m+1).padStart(2,'0');
-  events = events.filter(e => !(e.date && e.date.startsWith(mStr) && e.source !== 'manual'));
-  let total = 0;
-  // メインカレンダー取得
-  try {
-    const r = await gapi.client.request({ path:'https://www.googleapis.com/calendar/v3/calendars/primary/events',
-      params:{timeMin:tMin,timeMax:tMax,singleEvents:true,orderBy:'startTime',maxResults:100} });
-    const items = r.result.items || [];
-    items.forEach(item => {
-      const date = (item.start.date||item.start.dateTime||'').substring(0,10); if (!date) return;
-      const title = item.summary || '';
-      let type = 'event';
-      if (title.startsWith('[授業]')) type='lesson'; else if (title.startsWith('[校務]')) type='school'; else if (title.startsWith('[締切]')) type='deadline';
-      const clean = title.replace(/^\[(授業|行事|校務|締切)\]\s*/,'');
-      if (!events.find(e => e.date===date && e.title===clean)) events.push({id:Date.now()+Math.random(),date,title:clean,type});
-    });
-    total += items.length;
-  } catch(e) { alert('メインカレンダー取得エラー: '+e.message); return; }
-  // 共有カレンダー（API方式）取得
-  const apiCals = sharedCals.filter(c => c.type==='api');
-  for (const cal of apiCals) {
-    try {
-      const calId = cal.calId.trim();
-      const r = await gapi.client.request({ path:'https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(calId)+'/events',
-        params:{timeMin:tMin,timeMax:tMax,singleEvents:true,orderBy:'startTime',maxResults:100} });
-      if (r.result.error) throw new Error(r.result.error.message || JSON.stringify(r.result.error));
-      const items = r.result.items || [];
-      items.forEach(item => {
-        const date = (item.start.date||item.start.dateTime||'').substring(0,10); if (!date) return;
-        const title = (item.summary||'');
-        if (!events.find(e => e.date===date && e.title===title)) events.push({id:Date.now()+Math.random(),date,title,type:'event',source:cal.name});
-      });
-      total += items.length;
-    } catch(e) { alert(cal.name+'の取得エラー: '+(e.message||e.result?.error?.message||JSON.stringify(e))); }
-  }
-  // 共有カレンダー（iCal方式）取得
-  const icsCals = sharedCals.filter(c => c.type==='ics');
-  for (const cal of icsCals) {
-    try {
-      const text = await fetchICS(cal.calId);
-      const parsed = parseICS(text, cal.name);
-      parsed.forEach(ev => {
-        if (!events.find(e => e.date===ev.date && e.title===ev.title)) events.push(ev);
-      });
-      total += parsed.length;
-    } catch(e) { alert(cal.name+' (iCal) の取得エラー: '+e.message); }
-  }
-  save(); renderCal(); alert('取得完了: 合計'+total+'件（共有カレンダー含む）');
-}
-
-async function syncWeekFromGCal() {
-  if (!accessToken) { alert('先にGoogleでログインしてください'); return; }
-  const tEnd = new Date(weekBase); tEnd.setDate(weekBase.getDate()+5);
-  try {
-    const r = await gapi.client.request({ path:'https://www.googleapis.com/calendar/v3/calendars/primary/events',
-      params:{timeMin:new Date(weekBase).toISOString(),timeMax:tEnd.toISOString(),singleEvents:true,orderBy:'startTime',maxResults:50} });
-    const items = r.result.items || [];
-    items.forEach(item => {
-      const date = (item.start.date||item.start.dateTime||'').substring(0,10); if (!date) return;
-      const memo = item.summary + (item.description ? '\n'+item.description : '');
-      if (!dayMemos[date]) dayMemos[date] = memo;
-    });
-    save(); renderWeek(); alert('週間GCal取得完了: '+items.length+'件');
-  } catch(e) { alert('取得エラー: '+e.message); }
-}
-
-async function syncFromTasks() {
-  if (!accessToken) { alert('先にGoogleでログインしてください'); return; }
-  try {
-    const listsResp = await gapi.client.request({ path:'https://tasks.googleapis.com/tasks/v1/users/@me/lists', params:{maxResults:20} });
-    const lists = listsResp.result.items || [];
-    if (!lists.length) { alert('ToDoリストが見つかりませんでした'); return; }
-    let added = 0;
-    for (const list of lists) {
-      const tasksResp = await gapi.client.request({ path:'https://tasks.googleapis.com/tasks/v1/lists/'+list.id+'/tasks', params:{maxResults:50,showCompleted:false} });
-      const tasks = tasksResp.result.items || [];
-      tasks.forEach(task => {
-        const title = task.title; if (!title) return;
-        const date = task.due ? task.due.substring(0,10) : '';
-        if (!deadlines.find(d => d.taskId===task.id)) {
-          deadlines.push({id:Date.now()+Math.random(),taskId:task.id,title,cls:list.title,date,done:task.status==='completed',fromTasks:true});
-          added++;
-        }
-      });
-    }
-    save(); renderDL(); alert('Google ToDoから'+added+'件を取得しました');
-  } catch(e) { alert('Tasks取得エラー: '+e.message); }
-}
-
-function showTab(t) {
-  document.querySelectorAll('.tab').forEach((b,i) => b.classList.toggle('active', ['cal','tt','week','dl','shared'][i]===t));
-  document.querySelectorAll('.sec').forEach(s => s.classList.remove('active'));
-  document.getElementById('sec-'+t).classList.add('active');
-  if (t==='tt') renderTT(); if (t==='week') renderWeek(); if (t==='dl') renderDL();
-  if (t==='shared') renderSharedCals();
-}
-
-function renderCal() {
-  const y = cur.getFullYear(), m = cur.getMonth();
-  document.getElementById('cal-title').textContent = y+'年'+(m+1)+'月';
-  const grid = document.getElementById('cal-grid');
-  grid.querySelectorAll('.cal-cell').forEach(c => c.remove());
-  const rawFirst = new Date(y,m,1).getDay(); // 0=Sun
-  const first = (rawFirst === 0) ? 6 : rawFirst - 1; // Monday=0
-  const last = new Date(y,m+1,0).getDate(), today = new Date();
-  const addC = (date, other) => {
-    const cell = document.createElement('div');
-    const dow = date.getDay(); // 0=Sun,6=Sat
-    let cellCls = 'cal-cell'+(other?' other':'');
-    if (dow===6) cellCls += ' cal-sat';
-    if (dow===0) cellCls += ' cal-sun';
-    cell.className = cellCls;
-    if (date.toDateString()===today.toDateString()) cell.classList.add('today');
-    const dn = document.createElement('div'); dn.className='dn'; dn.textContent=date.getDate(); cell.appendChild(dn);
-    events.filter(e=>e.date===fmt(date)).forEach(e=>{
-      const d=document.createElement('div');
-      d.className='ev ev-'+e.type;
-      const short = e.title.length > 10 ? e.title.substring(0,10)+'…' : e.title;
-      d.textContent = short;
-      d.style.cursor = 'pointer';
-      d.title = e.title;
-      d.onclick = (ev) => { ev.stopPropagation(); showEvPopup(e.id, e.date, e.title); };
-      cell.appendChild(d);
-    });
-    grid.appendChild(cell);
-  };
-  // Monday-start: fill blanks before 1st
-  for (let i=0;i<first;i++) {
-    const d = new Date(y,m,1); d.setDate(1-first+i); addC(d,true);
-  }
-  for (let d=1;d<=last;d++) addC(new Date(y,m,d),false);
-  const rem = (7-((first+last)%7))%7;
-  for (let i=1;i<=rem;i++) addC(new Date(y,m+1,i),true);
-}
-function addEvent() {
-  const date=document.getElementById('ev-date').value, title=document.getElementById('ev-title').value.trim(), type=document.getElementById('ev-type').value;
-  if (!date||!title) return;
-  events.push({id:Date.now(),date,title,type,source:'manual'}); save(); document.getElementById('ev-title').value=''; renderCal();
-}
-function changeMonth(d) { cur.setMonth(cur.getMonth()+d); renderCal(); }
-
-function renderTT() {
-  const g = document.getElementById('tt-grid'); g.innerHTML='';
-  const blank = document.createElement('div'); blank.style.cssText='height:32px'; g.appendChild(blank);
-  TT_WDAYS.forEach(d => { const h=document.createElement('div');h.className='tt-head';h.textContent=d;g.appendChild(h); });
-  TT_PERIODS.forEach((p,pi) => {
-    const ph=document.createElement('div');ph.className='tt-period';ph.innerHTML=p.l+'<br><small>'+p.t+'</small>';g.appendChild(ph);
-    TT_WDAYS.forEach((_,di) => {
-      const key=di+'-'+pi, data=timetable[key]||{};
-      const cell=document.createElement('div'); cell.className='tt-cell'+(data.grade?' '+data.grade:'');
-      cell.innerHTML=data.subj?'<div class="tt-subj">'+data.subj+'</div>'+(data.room?'<div class="tt-room">'+data.room+'</div>':''):'<span style="font-size:18px;opacity:0.2">+</span>';
-      cell.onclick=()=>openTTModal(key,TT_WDAYS[di]+'曜 '+p.l,data);
-      g.appendChild(cell);
-    });
-  });
-}
-function openTTModal(key,label,data) {
-  editTTKey=key;
-  document.getElementById('tt-modal-title').textContent='時間割編集（'+label+'）';
-  document.getElementById('tm-grade').value=data.grade||'';
-  document.getElementById('tm-subj').value=data.subj||'';
-  document.getElementById('tm-room').value=data.room||'';
-  document.getElementById('tt-modal').classList.add('open');
-  setTimeout(()=>document.getElementById('tm-subj').focus(),50);
-}
-function closeTTModal() { document.getElementById('tt-modal').classList.remove('open'); editTTKey=null; }
-function saveTTCell() {
-  if (!editTTKey) return;
-  const grade=document.getElementById('tm-grade').value, subj=document.getElementById('tm-subj').value.trim(), room=document.getElementById('tm-room').value.trim();
-  if (subj) timetable[editTTKey]={grade,subj,room}; else delete timetable[editTTKey];
-  save(); closeTTModal(); renderTT();
-}
-document.getElementById('tm-subj').addEventListener('keydown', e=>{ if(e.key==='Enter') saveTTCell(); });
-
-function getWkKey(dateStr,pi) { return dateStr+'|'+pi; }
-function getCellData(dateStr,di,pi) {
-  const wkKey=getWkKey(dateStr,pi);
-  if (weekOverrides[wkKey]!==undefined) return {...weekOverrides[wkKey],modified:true};
-  // PERIODS[pi]が通常授業の場合のみ基本時間割から取得
-  const p = PERIODS[pi];
-  if (p && !p.special && di < 5) {
-    const ttIdx = TT_PERIODS.indexOf(p);
-    if (ttIdx >= 0) {
-      const base = timetable[di+'-'+ttIdx];
-      return base ? {...base,type:'lesson',modified:false} : {modified:false};
-    }
-  }
-  return {modified:false};
-}
-
-function renderWeek() {
-  const hw=document.getElementById('wk-head-wrap'); hw.innerHTML='';
-  const g=document.getElementById('week-grid'); g.innerHTML='';
-  const wDates=[];
-  for (let i=0;i<7;i++) { const d=new Date(weekBase);d.setDate(weekBase.getDate()+i);wDates.push(d); }
-  const d0=wDates[0],d6=wDates[6];
-  document.getElementById('week-title').textContent=(d0.getMonth()+1)+'/'+d0.getDate()+' 〜 '+(d6.getMonth()+1)+'/'+d6.getDate();
-  const today=new Date();
-  const blank=document.createElement('div');blank.className='wk-blank';hw.appendChild(blank);
-  wDates.forEach((d,di) => {
-    const dateStr=fmt(d), isToday=d.toDateString()===today.toDateString();
-    const wrap=document.createElement('div');wrap.className='wk-head'+(isToday?' is-today':'');
-    const top=document.createElement('div');top.className='wk-head-top';
-    top.innerHTML='<span style="'+WDAY_STYLES[di]+'">'+(WDAYS[di])+'</span><br><span style="font-size:10px">'+(d.getMonth()+1)+'/'+(d.getDate())+'</span>';
-    const memoArea=document.createElement('div');memoArea.className='wk-head-memo';
-    const memo=dayMemos[dateStr];
-    if (memo) {
-      const mt=document.createElement('div');mt.className='wk-memo-text';mt.textContent=memo;
-      mt.onclick=()=>openMemoModal(dateStr,WDAYS[di]+' '+(d.getMonth()+1)+'/'+(d.getDate()));
-      memoArea.appendChild(mt);
-    } else {
-      const me=document.createElement('div');me.className='wk-memo-empty';me.textContent='+ メモ';
-      me.onclick=()=>openMemoModal(dateStr,WDAYS[di]+' '+(d.getMonth()+1)+'/'+(d.getDate()));
-      memoArea.appendChild(me);
-    }
-    wrap.appendChild(top);wrap.appendChild(memoArea);hw.appendChild(wrap);
-  });
-  PERIODS.forEach((p,pi) => {
-    const ph=document.createElement('div');
-    ph.className='wk-period';
-    ph.style.cssText = p.special ? 'background:#e8e8e8;font-weight:500;' : '';
-    ph.innerHTML=p.l+(p.t?'<br><small>'+p.t+'</small>':'');
-    g.appendChild(ph);
-    wDates.forEach((d,di) => {
-      const dateStr=fmt(d), data=getCellData(dateStr,di,pi);
-      const cell=document.createElement('div');
-      let cls='wk-cell';
-      if (p.special) cls+=' wk-special';
-      if (data.type==='event') cls+=' ev-event'; else if (data.type==='school') cls+=' ev-school'; else if (data.grade) cls+=' '+data.grade;
-      if (data.modified) cls+=' modified';
-      cell.className=cls;
-      if (data.subj) cell.innerHTML='<div class="wc-subj">'+data.subj+'</div>'+(data.room?'<div class="wc-room">'+data.room+'</div>':'');
-      else if (data.evtitle) cell.innerHTML='<div class="wc-subj">'+data.evtitle+'</div>'+(data.evplace?'<div class="wc-room">'+data.evplace+'</div>':'')+(data.evnote?'<div class="wc-note">'+data.evnote+'</div>':'');
-      cell.onclick=()=>openWkModal(dateStr,di,pi,data,p.l);
-      g.appendChild(cell);
-    });
-  });
-}
-function openMemoModal(dateStr,label) {
-  editMemoKey=dateStr;
-  document.getElementById('memo-modal-title').textContent=label+' のメモ・時間変更';
-  document.getElementById('memo-text').value=dayMemos[dateStr]||'';
-  document.getElementById('memo-modal').classList.add('open');
-  setTimeout(()=>document.getElementById('memo-text').focus(),50);
-}
-function closeMemoModal() { document.getElementById('memo-modal').classList.remove('open'); editMemoKey=null; }
-function saveMemo() {
-  if (!editMemoKey) return;
-  const val=document.getElementById('memo-text').value.trim();
-  if (val) dayMemos[editMemoKey]=val; else delete dayMemos[editMemoKey];
-  save(); closeMemoModal(); renderWeek();
-}
-function clearMemo() { if (!editMemoKey) return; delete dayMemos[editMemoKey]; save(); closeMemoModal(); renderWeek(); }
-
-function openWkModal(dateStr,di,pi,data,periodLabel) {
-  editWkKey=getWkKey(dateStr,pi);
-  const d=new Date(dateStr+'T00:00:00');
-  const pLabel = periodLabel || PERIODS[pi]?.l || (pi+1)+'校時';
-  document.getElementById('wk-modal-title').textContent=WDAYS[di]+'曜 '+pLabel+'（'+(d.getMonth()+1)+'/'+(d.getDate())+'）';
-  const type=data.type||'lesson';
-  document.getElementById('wm-type').value=type;
-  document.getElementById('wm-grade').value=data.grade||'';
-  document.getElementById('wm-subj').value=data.subj||'';
-  document.getElementById('wm-room').value=data.room||'';
-  document.getElementById('wm-evtitle').value=data.evtitle||'';
-  document.getElementById('wm-evplace').value=data.evplace||'';
-  document.getElementById('wm-evnote').value=data.evnote||'';
-  toggleWkFields();
-  document.getElementById('wk-modal').classList.add('open');
-}
-function closeWkModal() { document.getElementById('wk-modal').classList.remove('open'); editWkKey=null; }
-function toggleWkFields() {
-  const t=document.getElementById('wm-type').value;
-  document.getElementById('wm-lesson-fields').style.display=t==='lesson'?'block':'none';
-  document.getElementById('wm-event-fields').style.display=(t==='event'||t==='school')?'block':'none';
-}
-function saveWkCell() {
-  if (!editWkKey) return;
-  const type=document.getElementById('wm-type').value;
-  if (type==='empty') { weekOverrides[editWkKey]={type:'empty'}; }
-  else if (type==='lesson') { weekOverrides[editWkKey]={type:'lesson',grade:document.getElementById('wm-grade').value,subj:document.getElementById('wm-subj').value.trim(),room:document.getElementById('wm-room').value.trim()}; }
-  else { weekOverrides[editWkKey]={type,evtitle:document.getElementById('wm-evtitle').value.trim(),evplace:document.getElementById('wm-evplace').value.trim(),evnote:document.getElementById('wm-evnote').value.trim()}; }
-  save(); closeWkModal(); renderWeek();
-}
-function clearWkCell() { if (!editWkKey) return; delete weekOverrides[editWkKey]; save(); closeWkModal(); renderWeek(); }
-function resetWeekOverrides() {
-  if (!confirm('この週の変更をすべて基本時間割に戻しますか？')) return;
-  const wDates=[];
-  for (let i=0;i<5;i++) { const d=new Date(weekBase);d.setDate(weekBase.getDate()+i);wDates.push(fmt(d)); }
-  wDates.forEach(dateStr=>PERIODS.forEach((_,pi)=>delete weekOverrides[getWkKey(dateStr,pi)]));
-  save(); renderWeek();
-}
-function changeWeek(d) { weekBase.setDate(weekBase.getDate()+d*7); renderWeek(); }
-
-function renderDL() {
-  const list=document.getElementById('dl-list'); list.innerHTML='';
-  const today=new Date(); today.setHours(0,0,0,0);
-  [...deadlines].sort((a,b)=>a.date<b.date?-1:1).forEach(dl => {
-    const dd=dl.date?new Date(dl.date):null;
-    const diff=dd?Math.round((dd-today)/86400000):null;
-    const dStr=diff===null?'日付なし':diff<0?'期限切れ':diff===0?'今日':diff+'日後';
-    const cls=diff===null?'ok':diff<0?'over':diff<=3?'soon':'ok';
-    const item=document.createElement('div'); item.className='dl-item'+(dl.done?' done':'')+(dl.fromTasks?' from-tasks':'');
-    item.innerHTML=`<input type="checkbox" ${dl.done?'checked':''} onchange="toggleDL(${dl.id})"><div class="dl-info"><div class="dl-title">${dl.title}${dl.fromTasks?'<span class="tasks-badge">ToDo</span>':''}</div><div class="dl-meta">${dl.cls||''}</div></div><div class="dl-days ${cls}">${dl.date||''}<br>${dStr}</div><button class="del-btn" onclick="deleteDL(${dl.id})">✕</button>`;
-    list.appendChild(item);
-  });
-  if (!deadlines.length) list.innerHTML='<p style="font-size:13px;color:#888;padding:1rem 0">登録された提出物はありません</p>';
-}
-function addDeadline() {
-  const title=document.getElementById('dl-title').value.trim(), cls=document.getElementById('dl-class').value.trim(), date=document.getElementById('dl-date').value;
-  if (!title) return;
-  deadlines.push({id:Date.now(),title,cls,date,done:false}); save();
-  document.getElementById('dl-title').value=''; document.getElementById('dl-class').value=''; renderDL();
-}
-function toggleDL(id) { const d=deadlines.find(x=>x.id===id); if(d){d.done=!d.done;save();renderDL();} }
-function deleteDL(id) { deadlines=deadlines.filter(x=>x.id!==id); save(); renderDL(); }
-
-// 共有カレンダー管理
-function addSharedCal(type) {
-  let name, calId;
-  if (type==='api') {
-    name = document.getElementById('sc-name').value.trim();
-    calId = document.getElementById('sc-id').value.trim();
-    if (!calId) { alert('カレンダーIDを入力してください'); return; }
-    if (!name) name = calId;
-    document.getElementById('sc-name').value='';
-    document.getElementById('sc-id').value='';
-  } else {
-    name = document.getElementById('sc-ics-name').value.trim();
-    calId = document.getElementById('sc-ics-url').value.trim();
-    if (!calId) { alert('iCal URLを入力してください'); return; }
-    if (!calId.startsWith('http')) { alert('URLはhttpから始まる形式で入力してください'); return; }
-    if (!name) name = 'iCalカレンダー';
-    document.getElementById('sc-ics-name').value='';
-    document.getElementById('sc-ics-url').value='';
-  }
-  if (sharedCals.find(c => c.calId===calId)) { alert('すでに登録されています'); return; }
-  sharedCals.push({id:Date.now(), name, calId, type});
-  save(); renderSharedCals();
-}
-
-function deleteSharedCal(id) {
-  sharedCals = sharedCals.filter(c => c.id!==id);
-  save(); renderSharedCals();
-}
-
-function renderSharedCals() {
-  const list = document.getElementById('shared-cal-list');
-  list.innerHTML = '';
-  if (!sharedCals.length) {
-    list.innerHTML = '<p style="font-size:13px;color:#888;padding:0.5rem 0">登録された共有カレンダーはありません</p>';
-    return;
-  }
-  sharedCals.forEach(cal => {
-    const item = document.createElement('div'); item.className='cal-item';
-    item.innerHTML=`<div class="cal-item-info"><div class="cal-item-name">${cal.name}</div><div class="cal-item-id">${cal.calId}</div></div><span class="cal-item-type ${cal.type==='api'?'type-api':'type-ics'}">${cal.type==='api'?'カレンダーID':'iCal'}</span><button class="del-btn" onclick="deleteSharedCal(${cal.id})">✕</button>`;
-    list.appendChild(item);
-  });
-}
-
-async function fetchICS(url) {
-  const proxies = [
-    u => 'https://corsproxy.io/?' + encodeURIComponent(u),
-    u => 'https://cors-anywhere.herokuapp.com/' + u,
-    u => 'https://thingproxy.freeboard.io/fetch/' + u,
-  ];
-  let lastErr;
-  for (const proxy of proxies) {
-    try {
-      const resp = await fetch(proxy(url), {headers:{'X-Requested-With':'XMLHttpRequest'}});
-      if (!resp.ok) throw new Error('HTTP ' + resp.status);
-      const text = await resp.text();
-      if (text.includes('BEGIN:VCALENDAR')) return text;
-      throw new Error('iCalデータではありません');
-    } catch(e) { lastErr = e; }
-  }
-  throw new Error('すべてのプロキシで失敗: ' + lastErr.message);
-}
-
-function parseICS(text, sourceName) {
-  const results = [];
-  const events = text.split('BEGIN:VEVENT');
-  events.shift();
-  events.forEach(block => {
-    const summaryMatch = block.match(/SUMMARY[^:]*:(.+)/);
-    const dtMatch = block.match(/DTSTART[^:]*:(\d{8})/);
-    if (!summaryMatch || !dtMatch) return;
-    const title = summaryMatch[1].replace(/\r/g,'').trim();
-    const raw = dtMatch[1];
-    const date = raw.substring(0,4)+'-'+raw.substring(4,6)+'-'+raw.substring(6,8);
-    results.push({id:Date.now()+Math.random(), date, title, type:'event', source:sourceName});
-  });
-  return results;
-}
-
-async function syncAllSharedCals() {
-  const apiCals = sharedCals.filter(c => c.type==='api');
-  const icsCals = sharedCals.filter(c => c.type==='ics');
-  if (!sharedCals.length) { alert('共有カレンダーが登録されていません'); return; }
-  if (apiCals.length && !accessToken) { alert('カレンダーID方式の取得にはGoogleログインが必要です'); }
-  const y = cur.getFullYear(), m = cur.getMonth();
-  // 当月の共有カレンダー由来イベントを削除してから再取得
-  const mStr = y+'-'+String(m+1).padStart(2,'0');
-  const sharedNames = sharedCals.map(c => c.name);
-  events = events.filter(e => !(e.date && e.date.startsWith(mStr) && e.source && sharedNames.includes(e.source)));
-  const tMin = new Date(y,m,1).toISOString();
-  const tMax = new Date(y,m+1,0,23,59,59).toISOString();
-  let total = 0;
-  for (const cal of apiCals) {
-    if (!accessToken) continue;
-    try {
-      const calId = cal.calId.trim();
-      const r = await gapi.client.request({ path:'https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(calId)+'/events',
-        params:{timeMin:tMin,timeMax:tMax,singleEvents:true,orderBy:'startTime',maxResults:100} });
-      if (r.result.error) throw new Error(r.result.error.message || JSON.stringify(r.result.error));
-      const items = r.result.items || [];
-      items.forEach(item => {
-        const date=(item.start.date||item.start.dateTime||'').substring(0,10); if(!date)return;
-        const title=item.summary||'';
-        if (!events.find(e=>e.date===date&&e.title===title)) events.push({id:Date.now()+Math.random(),date,title,type:'event',source:cal.name});
-      });
-      total += items.length;
-    } catch(e) { alert(cal.name+'の取得エラー: '+(e.message||e.result?.error?.message||JSON.stringify(e))); }
-  }
-  for (const cal of icsCals) {
-    try {
-      const text = await fetchICS(cal.calId);
-      const parsed = parseICS(text, cal.name);
-      parsed.forEach(ev => {
-        if (!events.find(e=>e.date===ev.date&&e.title===ev.title)) events.push(ev);
-      });
-      total += parsed.length;
-    } catch(e) { alert(cal.name+' (iCal) の取得エラー: '+e.message); }
-  }
-  save(); renderCal(); alert('共有カレンダー取得完了: '+total+'件');
-}
-
-
-let currentEvId = null;
-function showEvPopup(evId, date, title) {
-  currentEvId = evId;
-  document.getElementById('ev-popup-date').textContent = date;
-  document.getElementById('ev-popup-title').textContent = title;
-  document.getElementById('ev-popup').classList.add('open');
-}
-function closeEvPopup() {
-  document.getElementById('ev-popup').classList.remove('open');
-  currentEvId = null;
-}
-function deleteCurrentEvent() {
-  if (currentEvId === null) return;
-  if (!confirm('このイベントをアプリから削除しますか？\n（元のGoogleカレンダーは変更されません）')) return;
-  events = events.filter(e => e.id !== currentEvId);
-  save(); closeEvPopup(); renderCal();
-}
-
-document.getElementById('tt-modal').addEventListener('click',function(e){if(e.target===this)closeTTModal();});
-document.getElementById('wk-modal').addEventListener('click',function(e){if(e.target===this)closeWkModal();});
-document.getElementById('memo-modal').addEventListener('click',function(e){if(e.target===this)closeMemoModal();});
-document.getElementById('ev-popup').addEventListener('click',function(e){if(e.target===this)closeEvPopup();});
-
-const td=new Date();
-document.getElementById('ev-date').value=fmt(td);
-document.getElementById('dl-date').value=fmt(td);
-renderCal();
-</script>
+<!-- App -->
+<script src="js/shared.js"></script>
+<script src="js/gcal.js"></script>
+<script src="js/calendar.js"></script>
+<script src="js/timetable.js"></script>
+<script src="js/week.js"></script>
+<script src="js/deadline.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>

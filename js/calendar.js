@@ -12,6 +12,22 @@ const CALENDAR = {
     this._setupPopup();
     this._setupEventModal();
     this.render();
+
+    // 画面回転・リサイズ時に文字数を再計算して再描画
+    let _resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(_resizeTimer);
+      _resizeTimer = setTimeout(() => this.render(), 200);
+    });
+  },
+
+  // ウィンドウ幅からセル幅を逆算し、収まる最大文字数を返す
+  _getMaxChars() {
+    const mainPadding = window.innerWidth < 768 ? 16 : 24; // main の左右padding合計
+    const cellWidth = (window.innerWidth - mainPadding) / 7;
+    const fontSize  = window.innerWidth < 768 ? 10 : 11;   // .cal-event の font-size
+    const overhead  = 11 + 8; // border-left(3) + padding左右(4+4) + 余白
+    return Math.max(3, Math.floor((cellWidth - overhead) / fontSize));
   },
 
   // ---- ナビゲーション ----
@@ -141,11 +157,12 @@ const CALENDAR = {
       // イベント一覧
       const eventsEl = document.createElement('div');
       eventsEl.className = 'cal-events';
+      const maxChars = this._getMaxChars();
       const dayEvents = APP.events.filter(ev => ev.date === dateStr);
       dayEvents.forEach(ev => {
         const evEl = document.createElement('div');
         evEl.className = `cal-event ${APP.typeClass(ev.type)}`;
-        const shortTitle = ev.title.length > 10 ? ev.title.substring(0, 10) + '…' : ev.title;
+        const shortTitle = ev.title.length > maxChars ? ev.title.substring(0, maxChars) + '…' : ev.title;
         evEl.textContent = shortTitle;
         evEl.title = ev.title;
         evEl.addEventListener('click', (e) => {

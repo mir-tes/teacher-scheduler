@@ -232,6 +232,8 @@ main { padding: 12px; max-width: 1200px; margin: 0 auto; }
   border-bottom: 1px solid #eee;
   padding: 4px;
   vertical-align: top;
+  min-width: 0;     /* grid item がコンテンツ幅で膨張するのを防ぐ */
+  overflow: hidden; /* ellipsis を有効にするために必要 */
 }
 
 .cal-day:nth-child(7n) { border-right: none; }

@@ -2,29 +2,32 @@
 
 const GCAL = {
   CLIENT_ID: '116307121637-ev8bq1td5q8v6v11f5dtmo9u53nqtft2.apps.googleusercontent.com',
-  SCOPES: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks https://www.googleapis.com/auth/drive.appdata',
-  DISCOVERY_CAL: 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest',
+  // drive.appdata を分離: iOS Safari の ITP が drive.appdata 同意画面の
+  // postMessage を遮断するため、メイン接続には含めない
+  SCOPES_MAIN: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks',
+  SCOPE_DRIVE:  'https://www.googleapis.com/auth/drive.appdata',
+  DISCOVERY_CAL:   'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest',
   DISCOVERY_TASKS: 'https://www.googleapis.com/discovery/v1/apis/tasks/v1/rest',
 
-  tokenClient: null,
-  isConnected: false,
-  gapiReady: false,
-  gisReady: false,
+  tokenClient:      null, // Calendar + Tasks 用
+  driveTokenClient: null, // Drive Appdata 用
+  isConnected:      false,
+  isDriveConnected: false,
+  gapiReady:  false,
+  gisReady:   false,
 
-  // ---- Drive Appdata ----
   DRIVE_FILE_NAME: 'teacher-scheduler-data.json',
-  driveFileId: null,
+  driveFileId:     null,
   _driveSaveTimer: null,
-  // GIS Token Model では gapi.client.setToken() を呼ばないと
-  // gapi.client.getToken() が null を返すため自前で保持する
-  accessToken: null,
+  accessToken:     null,
 
   // ---- 初期化 ----
   init() {
-    document.getElementById('gcal-connect-btn').addEventListener('click', () => this.connect());
+    document.getElementById('gcal-connect-btn').addEventListener('click',    () => this.connect());
     document.getElementById('gcal-disconnect-btn').addEventListener('click', () => this.disconnect());
-    document.getElementById('gcal-fetch-btn').addEventListener('click', () => this.fetchAndImport());
-    document.getElementById('gcal-send-btn').addEventListener('click', () => this.sendLocalEvents());
+    document.getElementById('gcal-fetch-btn').addEventListener('click',      () => this.fetchAndImport());
+    document.getElementById('gcal-send-btn').addEventListener('click',       () => this.sendLocalEvents());
+    document.getElementById('drive-enable-btn').addEventListener('click',    () => this.enableDriveSync());
 
     this.updateDriveStatus('未接続');
     this._waitForGapi();
@@ -62,29 +65,49 @@ const GCAL = {
   },
 
   _initGIS() {
+    // ① メイン接続クライアント（Calendar + Tasks のみ）
+    //    iOS Safari でも安定して動作するスコープ構成
     this.tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: this.CLIENT_ID,
-      scope: this.SCOPES,
+      scope: this.SCOPES_MAIN,
       callback: async (resp) => {
         if (resp.error) {
           console.error('GIS error:', resp);
           alert('Google認証に失敗しました: ' + resp.error);
           return;
         }
-        // トークンを自前で保持 + gapi.client にも設定（両方必要）
         this.accessToken = resp.access_token;
         gapi.client.setToken(resp);
-
         this.isConnected = true;
         this.updateStatus('接続中');
-
-        // ログイン直後にDriveからデータを自動読み込み
-        const driveData = await this.loadFromDrive();
-        if (driveData) {
-          APP.applyDriveData(driveData);
-        }
+        // ログイン後に Drive スコープをサイレント取得試行
+        this._tryDriveSilent();
       }
     });
+
+    // ② Drive Appdata クライアント（サイレント取得 / 手動有効化 兼用）
+    //    include_granted_scopes: true → Calendar+Tasks スコープも引き継ぎ
+    this.driveTokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: this.CLIENT_ID,
+      scope: this.SCOPE_DRIVE,
+      include_granted_scopes: true,
+      callback: async (resp) => {
+        if (resp.error) {
+          // サイレント取得失敗（ITP や未許可）→ ボタンを表示してユーザーに委ねる
+          this.updateDriveStatus('未接続');
+          this._showDriveEnableBtn(true);
+          return;
+        }
+        // Drive を含む新トークンで上書き
+        this.accessToken = resp.access_token;
+        gapi.client.setToken(resp);
+        this.isDriveConnected = true;
+        this._showDriveEnableBtn(false);
+        const driveData = await this.loadFromDrive();
+        if (driveData) APP.applyDriveData(driveData);
+      }
+    });
+
     this.gisReady = true;
     this._maybeEnable();
   },
@@ -101,7 +124,6 @@ const GCAL = {
       alert('Google APIの初期化中です。しばらくお待ちください。');
       return;
     }
-    // ページリロード後は常に consent → drive.appdata スコープを確実に要求
     const token = gapi.client.getToken();
     this.tokenClient.requestAccessToken({ prompt: token ? '' : 'consent' });
   },
@@ -112,26 +134,46 @@ const GCAL = {
       google.accounts.oauth2.revoke(token.access_token, () => {});
       gapi.client.setToken(null);
     }
-    this.isConnected = false;
-    this.accessToken = null;
-    this.driveFileId = null;
+    this.isConnected      = false;
+    this.isDriveConnected = false;
+    this.accessToken      = null;
+    this.driveFileId      = null;
     this.updateStatus('未接続');
     this.updateDriveStatus('未接続');
+    this._showDriveEnableBtn(false);
+  },
+
+  // Drive スコープをサイレントで取得試行
+  // prompt:'none' = UIなし。未許可 or ITP遮断時はエラーコールバックで処理
+  _tryDriveSilent() {
+    if (!this.driveTokenClient) return;
+    this.driveTokenClient.requestAccessToken({ prompt: 'none' });
+  },
+
+  // 「Drive同期」ボタンからの手動有効化
+  enableDriveSync() {
+    if (!this.isConnected || !this.driveTokenClient) return;
+    this.driveTokenClient.requestAccessToken({ prompt: 'consent' });
+  },
+
+  _showDriveEnableBtn(show) {
+    const btn = document.getElementById('drive-enable-btn');
+    if (btn) btn.style.display = show ? 'inline' : 'none';
   },
 
   updateStatus(text) {
     const el = document.getElementById('gcal-status');
-    const connectBtn = document.getElementById('gcal-connect-btn');
+    const connectBtn    = document.getElementById('gcal-connect-btn');
     const disconnectBtn = document.getElementById('gcal-disconnect-btn');
     if (!el) return;
     el.textContent = text;
     if (this.isConnected) {
       el.className = 'status-badge connected';
-      connectBtn.style.display = 'none';
+      connectBtn.style.display    = 'none';
       disconnectBtn.style.display = 'inline';
     } else {
       el.className = 'status-badge';
-      connectBtn.style.display = 'inline';
+      connectBtn.style.display    = 'inline';
       disconnectBtn.style.display = 'none';
     }
   },
@@ -258,7 +300,6 @@ const GCAL = {
 
   // ---- Google Drive Appdata 同期 ----
 
-  // 自前で保持したトークンを返す（gapi.client.getToken() は setToken() 未実行だと null）
   _driveToken() {
     return this.accessToken;
   },
@@ -272,8 +313,7 @@ const GCAL = {
         { headers: { 'Authorization': `Bearer ${token}` } }
       );
       if (!res.ok) {
-        const err = await res.text();
-        console.error('Drive files.list error:', res.status, err);
+        console.error('Drive files.list error:', res.status, await res.text());
         return null;
       }
       const data = await res.json();
@@ -292,7 +332,6 @@ const GCAL = {
       this.updateDriveStatus('同期中...');
       const fileId = await this._findDriveFile();
       if (!fileId) {
-        // まだファイルがない（初回）= 同期済みとして扱う
         this.updateDriveStatus('Drive同期済み');
         return null;
       }
@@ -316,9 +355,9 @@ const GCAL = {
     }
   },
 
-  // データ変更時に呼び出す（1秒デバウンス）
+  // isDriveConnected のときのみ保存（Drive スコープ未取得時はスキップ）
   saveToDrive() {
-    if (!this.isConnected) return;
+    if (!this.isConnected || !this.isDriveConnected) return;
     clearTimeout(this._driveSaveTimer);
     this._driveSaveTimer = setTimeout(() => this._doSaveToDrive(), 1000);
   },
@@ -342,7 +381,6 @@ const GCAL = {
       }
 
       if (this.driveFileId) {
-        // 既存ファイルを上書き
         const res = await fetch(
           `https://www.googleapis.com/upload/drive/v3/files/${this.driveFileId}?uploadType=media`,
           {
@@ -360,7 +398,6 @@ const GCAL = {
           return;
         }
       } else {
-        // 新規ファイルを appDataFolder に作成
         const boundary = '-------314159265358979323846';
         const metadata = JSON.stringify({ name: this.DRIVE_FILE_NAME, parents: ['appDataFolder'] });
         const body = [
@@ -401,12 +438,10 @@ const GCAL = {
     }
   },
 
-  // Drive上のファイルを削除（データクリア時に呼び出す）
   async clearDriveData() {
     const token = this._driveToken();
     if (!token) return;
     try {
-      // fileId が未取得なら検索する
       if (!this.driveFileId) {
         this.driveFileId = await this._findDriveFile();
       }

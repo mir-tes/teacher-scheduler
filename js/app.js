@@ -29,7 +29,7 @@ const APP = {
     SHARED.init();
   },
 
-  // --- データ読み込み ---
+  // --- データ読み込み（localStorage優先、Drive接続後はDriveが上書き） ---
   loadData() {
     try {
       this.events         = JSON.parse(localStorage.getItem('sch_ev')     || '[]');
@@ -43,13 +43,36 @@ const APP = {
     }
   },
 
-  // --- 保存ヘルパー ---
-  saveEvents()          { localStorage.setItem('sch_ev',     JSON.stringify(this.events)); },
-  saveTimetable()       { localStorage.setItem('sch_tt',     JSON.stringify(this.timetable)); },
-  saveDeadlines()       { localStorage.setItem('sch_dl',     JSON.stringify(this.deadlines)); },
-  saveWeekOverrides()   { localStorage.setItem('sch_wov',    JSON.stringify(this.weekOverrides)); },
-  saveMemos()           { localStorage.setItem('sch_memo',   JSON.stringify(this.memos)); },
-  saveSharedCalendars() { localStorage.setItem('sch_shared', JSON.stringify(this.sharedCalendars)); },
+  // --- Driveデータ適用（Drive読み込み後に呼び出す） ---
+  applyDriveData(data) {
+    if (data.sch_ev     !== undefined) this.events          = data.sch_ev;
+    if (data.sch_tt     !== undefined) this.timetable       = data.sch_tt;
+    if (data.sch_dl     !== undefined) this.deadlines       = data.sch_dl;
+    if (data.sch_wov    !== undefined) this.weekOverrides   = data.sch_wov;
+    if (data.sch_memo   !== undefined) this.memos           = data.sch_memo;
+    if (data.sch_shared !== undefined) this.sharedCalendars = data.sch_shared;
+    // localStorageも同期
+    localStorage.setItem('sch_ev',     JSON.stringify(this.events));
+    localStorage.setItem('sch_tt',     JSON.stringify(this.timetable));
+    localStorage.setItem('sch_dl',     JSON.stringify(this.deadlines));
+    localStorage.setItem('sch_wov',    JSON.stringify(this.weekOverrides));
+    localStorage.setItem('sch_memo',   JSON.stringify(this.memos));
+    localStorage.setItem('sch_shared', JSON.stringify(this.sharedCalendars));
+    // 全ビューを再レンダリング
+    CALENDAR.render();
+    TIMETABLE.render();
+    WEEK.render();
+    DEADLINE.render();
+    SHARED.render();
+  },
+
+  // --- 保存ヘルパー（localStorage + Drive自動同期） ---
+  saveEvents()          { localStorage.setItem('sch_ev',     JSON.stringify(this.events));          GCAL.saveToDrive(); },
+  saveTimetable()       { localStorage.setItem('sch_tt',     JSON.stringify(this.timetable));       GCAL.saveToDrive(); },
+  saveDeadlines()       { localStorage.setItem('sch_dl',     JSON.stringify(this.deadlines));       GCAL.saveToDrive(); },
+  saveWeekOverrides()   { localStorage.setItem('sch_wov',    JSON.stringify(this.weekOverrides));   GCAL.saveToDrive(); },
+  saveMemos()           { localStorage.setItem('sch_memo',   JSON.stringify(this.memos));           GCAL.saveToDrive(); },
+  saveSharedCalendars() { localStorage.setItem('sch_shared', JSON.stringify(this.sharedCalendars)); GCAL.saveToDrive(); },
 
   // --- 週の開始日（月曜日）を計算 ---
   setCurrentWeek(date) {

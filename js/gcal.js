@@ -1,8 +1,8 @@
-// ========== GCAL.JS — Google Calendar / Tasks API連携 ==========
+// ========== GCAL.JS — Google Calendar / Tasks / Drive API連携 ==========
 
 const GCAL = {
   CLIENT_ID: '116307121637-ev8bq1td5q8v6v11f5dtmo9u53nqtft2.apps.googleusercontent.com',
-  SCOPES: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks',
+  SCOPES: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks https://www.googleapis.com/auth/drive.appdata',
   DISCOVERY_CAL: 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest',
   DISCOVERY_TASKS: 'https://www.googleapis.com/discovery/v1/apis/tasks/v1/rest',
 
@@ -11,6 +11,11 @@ const GCAL = {
   gapiReady: false,
   gisReady: false,
 
+  // ---- Drive Appdata ----
+  DRIVE_FILE_NAME: 'teacher-scheduler-data.json',
+  driveFileId: null,
+  _driveSaveTimer: null,
+
   // ---- 初期化 ----
   init() {
     document.getElementById('gcal-connect-btn').addEventListener('click', () => this.connect());
@@ -18,6 +23,7 @@ const GCAL = {
     document.getElementById('gcal-fetch-btn').addEventListener('click', () => this.fetchAndImport());
     document.getElementById('gcal-send-btn').addEventListener('click', () => this.sendLocalEvents());
 
+    this.updateDriveStatus('未接続');
     this._waitForGapi();
     this._waitForGis();
   },
@@ -58,7 +64,7 @@ const GCAL = {
     this.tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: this.CLIENT_ID,
       scope: this.SCOPES,
-      callback: (resp) => {
+      callback: async (resp) => {
         if (resp.error) {
           console.error('GIS error:', resp);
           alert('Google認証に失敗しました: ' + resp.error);
@@ -66,6 +72,11 @@ const GCAL = {
         }
         this.isConnected = true;
         this.updateStatus('接続中');
+        // ログイン後にDriveからデータを自動読み込み
+        const driveData = await this.loadFromDrive();
+        if (driveData) {
+          APP.applyDriveData(driveData);
+        }
       }
     });
     this.gisReady = true;
@@ -95,7 +106,9 @@ const GCAL = {
       gapi.client.setToken(null);
     }
     this.isConnected = false;
+    this.driveFileId = null;
     this.updateStatus('未接続');
+    this.updateDriveStatus('未接続');
   },
 
   updateStatus(text) {
@@ -240,6 +253,145 @@ const GCAL = {
     } catch(e) {
       console.error('fetchTasks error:', e);
       return [];
+    }
+  },
+
+  // ---- Google Drive Appdata 同期 ----
+
+  _driveToken() {
+    const token = gapi.client.getToken();
+    return token ? token.access_token : null;
+  },
+
+  async _findDriveFile() {
+    const token = this._driveToken();
+    if (!token) return null;
+    try {
+      const res = await fetch(
+        `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%27${this.DRIVE_FILE_NAME}%27&fields=files(id)`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      const data = await res.json();
+      const files = data.files || [];
+      return files.length > 0 ? files[0].id : null;
+    } catch(e) {
+      console.error('_findDriveFile error:', e);
+      return null;
+    }
+  },
+
+  async loadFromDrive() {
+    const token = this._driveToken();
+    if (!token) return null;
+    try {
+      this.updateDriveStatus('同期中...');
+      const fileId = await this._findDriveFile();
+      if (!fileId) {
+        this.updateDriveStatus('Drive同期済み');
+        return null;
+      }
+      this.driveFileId = fileId;
+      const res = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      if (!res.ok) {
+        this.updateDriveStatus('未接続');
+        return null;
+      }
+      const data = await res.json();
+      this.updateDriveStatus('Drive同期済み');
+      return data;
+    } catch(e) {
+      console.error('loadFromDrive error:', e);
+      this.updateDriveStatus('未接続');
+      return null;
+    }
+  },
+
+  // データ変更時に呼び出す（1秒デバウンス）
+  saveToDrive() {
+    if (!this.isConnected) return;
+    clearTimeout(this._driveSaveTimer);
+    this._driveSaveTimer = setTimeout(() => this._doSaveToDrive(), 1000);
+  },
+
+  async _doSaveToDrive() {
+    const token = this._driveToken();
+    if (!token) return;
+    try {
+      this.updateDriveStatus('同期中...');
+      const payload = JSON.stringify({
+        sch_ev:     APP.events,
+        sch_tt:     APP.timetable,
+        sch_dl:     APP.deadlines,
+        sch_wov:    APP.weekOverrides,
+        sch_memo:   APP.memos,
+        sch_shared: APP.sharedCalendars
+      });
+
+      if (!this.driveFileId) {
+        this.driveFileId = await this._findDriveFile();
+      }
+
+      if (this.driveFileId) {
+        await fetch(
+          `https://www.googleapis.com/upload/drive/v3/files/${this.driveFileId}?uploadType=media`,
+          {
+            method: 'PATCH',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: payload
+          }
+        );
+      } else {
+        const boundary = '-------314159265358979323846';
+        const metadata = JSON.stringify({ name: this.DRIVE_FILE_NAME, parents: ['appDataFolder'] });
+        const body = [
+          `--${boundary}`,
+          'Content-Type: application/json; charset=UTF-8',
+          '',
+          metadata,
+          `--${boundary}`,
+          'Content-Type: application/json',
+          '',
+          payload,
+          `--${boundary}--`
+        ].join('\r\n');
+
+        const res = await fetch(
+          'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': `multipart/related; boundary="${boundary}"`
+            },
+            body
+          }
+        );
+        const result = await res.json();
+        this.driveFileId = result.id;
+      }
+      this.updateDriveStatus('Drive同期済み');
+    } catch(e) {
+      console.error('saveToDrive error:', e);
+      this.updateDriveStatus('未接続');
+    }
+  },
+
+  updateDriveStatus(text) {
+    const el = document.getElementById('drive-status');
+    if (!el) return;
+    el.textContent = text;
+    if (text === 'Drive同期済み') {
+      el.className = 'status-badge connected';
+    } else if (text === '同期中...') {
+      el.className = 'status-badge syncing';
+    } else {
+      el.className = 'status-badge';
     }
   }
 };

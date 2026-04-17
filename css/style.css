@@ -45,6 +45,10 @@ header h1 {
   background: #27ae60;
 }
 
+.status-badge.syncing {
+  background: #e67e22;
+}
+
 /* ========== TABS ========== */
 .tab-nav {
   display: flex;

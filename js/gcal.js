@@ -15,6 +15,9 @@ const GCAL = {
   DRIVE_FILE_NAME: 'teacher-scheduler-data.json',
   driveFileId: null,
   _driveSaveTimer: null,
+  // GIS Token Model では gapi.client.setToken() を呼ばないと
+  // gapi.client.getToken() が null を返すため自前で保持する
+  accessToken: null,
 
   // ---- 初期化 ----
   init() {
@@ -28,7 +31,6 @@ const GCAL = {
     this._waitForGis();
   },
 
-  // GAPIライブラリが読み込まれるまで待機
   _waitForGapi() {
     if (typeof gapi !== 'undefined') {
       this._initGapiClient();
@@ -51,7 +53,6 @@ const GCAL = {
     });
   },
 
-  // GISライブラリが読み込まれるまで待機
   _waitForGis() {
     if (typeof google !== 'undefined' && google.accounts) {
       this._initGIS();
@@ -70,9 +71,14 @@ const GCAL = {
           alert('Google認証に失敗しました: ' + resp.error);
           return;
         }
+        // トークンを自前で保持 + gapi.client にも設定（両方必要）
+        this.accessToken = resp.access_token;
+        gapi.client.setToken(resp);
+
         this.isConnected = true;
         this.updateStatus('接続中');
-        // ログイン後にDriveからデータを自動読み込み
+
+        // ログイン直後にDriveからデータを自動読み込み
         const driveData = await this.loadFromDrive();
         if (driveData) {
           APP.applyDriveData(driveData);
@@ -95,6 +101,7 @@ const GCAL = {
       alert('Google APIの初期化中です。しばらくお待ちください。');
       return;
     }
+    // ページリロード後は常に consent → drive.appdata スコープを確実に要求
     const token = gapi.client.getToken();
     this.tokenClient.requestAccessToken({ prompt: token ? '' : 'consent' });
   },
@@ -106,6 +113,7 @@ const GCAL = {
       gapi.client.setToken(null);
     }
     this.isConnected = false;
+    this.accessToken = null;
     this.driveFileId = null;
     this.updateStatus('未接続');
     this.updateDriveStatus('未接続');
@@ -144,7 +152,6 @@ const GCAL = {
     const timeMax = new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59).toISOString();
 
     const items = await this.fetchEvents('primary', timeMin, timeMax);
-    // 既存のgcalソースを当月分削除してから追加
     APP.events = APP.events.filter(ev => {
       if (ev.source !== 'gcal') return true;
       return ev.date < APP.formatDate(new Date(month.getFullYear(), month.getMonth(), 1)) ||
@@ -168,7 +175,6 @@ const GCAL = {
     alert(`${items.length}件のイベントを取得しました。`);
   },
 
-  // ---- 指定カレンダーのイベント取得 ----
   async fetchEvents(calendarId, timeMin, timeMax) {
     if (!this.isConnected) return [];
     try {
@@ -187,7 +193,6 @@ const GCAL = {
     }
   },
 
-  // ---- ローカルイベントをGCalへ送信 ----
   async sendLocalEvents() {
     if (!this._checkConnected()) return;
     const month = APP.currentMonth;
@@ -216,11 +221,7 @@ const GCAL = {
     try {
       const res = await gapi.client.calendar.events.insert({
         calendarId,
-        resource: {
-          summary: title,
-          start: { date },
-          end: { date }
-        }
+        resource: { summary: title, start: { date }, end: { date } }
       });
       return res.result;
     } catch(e) {
@@ -229,7 +230,6 @@ const GCAL = {
     }
   },
 
-  // ---- Google Tasks 取得 ----
   async fetchTasks() {
     if (!this.isConnected) return [];
     try {
@@ -258,9 +258,9 @@ const GCAL = {
 
   // ---- Google Drive Appdata 同期 ----
 
+  // 自前で保持したトークンを返す（gapi.client.getToken() は setToken() 未実行だと null）
   _driveToken() {
-    const token = gapi.client.getToken();
-    return token ? token.access_token : null;
+    return this.accessToken;
   },
 
   async _findDriveFile() {
@@ -271,6 +271,11 @@ const GCAL = {
         `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%27${this.DRIVE_FILE_NAME}%27&fields=files(id)`,
         { headers: { 'Authorization': `Bearer ${token}` } }
       );
+      if (!res.ok) {
+        const err = await res.text();
+        console.error('Drive files.list error:', res.status, err);
+        return null;
+      }
       const data = await res.json();
       const files = data.files || [];
       return files.length > 0 ? files[0].id : null;
@@ -287,6 +292,7 @@ const GCAL = {
       this.updateDriveStatus('同期中...');
       const fileId = await this._findDriveFile();
       if (!fileId) {
+        // まだファイルがない（初回）= 同期済みとして扱う
         this.updateDriveStatus('Drive同期済み');
         return null;
       }
@@ -296,6 +302,7 @@ const GCAL = {
         { headers: { 'Authorization': `Bearer ${token}` } }
       );
       if (!res.ok) {
+        console.error('Drive file get error:', res.status);
         this.updateDriveStatus('未接続');
         return null;
       }
@@ -335,7 +342,8 @@ const GCAL = {
       }
 
       if (this.driveFileId) {
-        await fetch(
+        // 既存ファイルを上書き
+        const res = await fetch(
           `https://www.googleapis.com/upload/drive/v3/files/${this.driveFileId}?uploadType=media`,
           {
             method: 'PATCH',
@@ -346,7 +354,13 @@ const GCAL = {
             body: payload
           }
         );
+        if (!res.ok) {
+          console.error('Drive PATCH error:', res.status, await res.text());
+          this.updateDriveStatus('未接続');
+          return;
+        }
       } else {
+        // 新規ファイルを appDataFolder に作成
         const boundary = '-------314159265358979323846';
         const metadata = JSON.stringify({ name: this.DRIVE_FILE_NAME, parents: ['appDataFolder'] });
         const body = [
@@ -372,6 +386,11 @@ const GCAL = {
             body
           }
         );
+        if (!res.ok) {
+          console.error('Drive POST error:', res.status, await res.text());
+          this.updateDriveStatus('未接続');
+          return;
+        }
         const result = await res.json();
         this.driveFileId = result.id;
       }
@@ -379,6 +398,31 @@ const GCAL = {
     } catch(e) {
       console.error('saveToDrive error:', e);
       this.updateDriveStatus('未接続');
+    }
+  },
+
+  // Drive上のファイルを削除（データクリア時に呼び出す）
+  async clearDriveData() {
+    const token = this._driveToken();
+    if (!token) return;
+    try {
+      // fileId が未取得なら検索する
+      if (!this.driveFileId) {
+        this.driveFileId = await this._findDriveFile();
+      }
+      if (!this.driveFileId) return;
+      const res = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${this.driveFileId}`,
+        { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      if (res.ok || res.status === 204) {
+        this.driveFileId = null;
+        this.updateDriveStatus('Drive同期済み');
+      } else {
+        console.error('Drive DELETE error:', res.status);
+      }
+    } catch(e) {
+      console.error('clearDriveData error:', e);
     }
   },
 

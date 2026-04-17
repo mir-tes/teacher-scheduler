@@ -10,8 +10,8 @@ const APP = {
   sharedCalendars: [],
 
   // --- 現在の表示状態 ---
-  currentMonth: new Date(),   // カレンダー月
-  currentWeekStart: null,     // 週間スケジュールの月曜日
+  currentMonth: new Date(),
+  currentWeekStart: null,
 
   // --- 初期化 ---
   init() {
@@ -20,7 +20,6 @@ const APP = {
     this.setupTabs();
     this.setDefaultDates();
 
-    // 各モジュール初期化
     GCAL.init();
     CALENDAR.init();
     TIMETABLE.init();
@@ -29,7 +28,7 @@ const APP = {
     SHARED.init();
   },
 
-  // --- データ読み込み（localStorage優先、Drive接続後はDriveが上書き） ---
+  // --- データ読み込み（起動時はlocalStorageから、Drive接続後はDriveが上書き） ---
   loadData() {
     try {
       this.events         = JSON.parse(localStorage.getItem('sch_ev')     || '[]');
@@ -43,7 +42,7 @@ const APP = {
     }
   },
 
-  // --- Driveデータ適用（Drive読み込み後に呼び出す） ---
+  // --- Driveデータ適用（Google接続後にDriveから読み込んだデータで上書き） ---
   applyDriveData(data) {
     if (data.sch_ev     !== undefined) this.events          = data.sch_ev;
     if (data.sch_tt     !== undefined) this.timetable       = data.sch_tt;
@@ -51,14 +50,14 @@ const APP = {
     if (data.sch_wov    !== undefined) this.weekOverrides   = data.sch_wov;
     if (data.sch_memo   !== undefined) this.memos           = data.sch_memo;
     if (data.sch_shared !== undefined) this.sharedCalendars = data.sch_shared;
-    // localStorageも同期
+    // localStorageも最新に揃える
     localStorage.setItem('sch_ev',     JSON.stringify(this.events));
     localStorage.setItem('sch_tt',     JSON.stringify(this.timetable));
     localStorage.setItem('sch_dl',     JSON.stringify(this.deadlines));
     localStorage.setItem('sch_wov',    JSON.stringify(this.weekOverrides));
     localStorage.setItem('sch_memo',   JSON.stringify(this.memos));
     localStorage.setItem('sch_shared', JSON.stringify(this.sharedCalendars));
-    // 全ビューを再レンダリング
+    // 全ビューを再描画
     CALENDAR.render();
     TIMETABLE.render();
     WEEK.render();
@@ -74,10 +73,35 @@ const APP = {
   saveMemos()           { localStorage.setItem('sch_memo',   JSON.stringify(this.memos));           GCAL.saveToDrive(); },
   saveSharedCalendars() { localStorage.setItem('sch_shared', JSON.stringify(this.sharedCalendars)); GCAL.saveToDrive(); },
 
+  // --- 全データをクリア（localStorage + Drive） ---
+  clearAllData() {
+    if (!confirm('すべてのデータを削除します。この操作は取り消せません。よろしいですか？')) return;
+    this.events         = [];
+    this.timetable      = {};
+    this.deadlines      = [];
+    this.weekOverrides  = {};
+    this.memos          = {};
+    this.sharedCalendars = [];
+    localStorage.removeItem('sch_ev');
+    localStorage.removeItem('sch_tt');
+    localStorage.removeItem('sch_dl');
+    localStorage.removeItem('sch_wov');
+    localStorage.removeItem('sch_memo');
+    localStorage.removeItem('sch_shared');
+    // Drive上のファイルも削除
+    GCAL.clearDriveData();
+    // 全ビューを再描画
+    CALENDAR.render();
+    TIMETABLE.render();
+    WEEK.render();
+    DEADLINE.render();
+    SHARED.render();
+  },
+
   // --- 週の開始日（月曜日）を計算 ---
   setCurrentWeek(date) {
     const d = date ? new Date(date) : new Date();
-    const dow = d.getDay(); // 0=Sun
+    const dow = d.getDay();
     const diff = dow === 0 ? -6 : 1 - dow;
     d.setDate(d.getDate() + diff);
     d.setHours(0, 0, 0, 0);
@@ -123,12 +147,10 @@ const APP = {
     return new Date(y, m - 1, d);
   },
 
-  // イベント種別 → カラークラス
   typeClass(type) {
     return `type-${type}`;
   },
 
-  // モーダル開閉
   openModal(id) {
     const el = document.getElementById(id);
     if (el) el.style.display = 'flex';
@@ -139,7 +161,6 @@ const APP = {
     if (el) el.style.display = 'none';
   },
 
-  // モーダル外クリックで閉じる
   setupModalClose(overlayId, modalId) {
     const overlay = document.getElementById(overlayId);
     if (!overlay) return;

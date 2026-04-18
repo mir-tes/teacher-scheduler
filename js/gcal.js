@@ -115,13 +115,64 @@ const GCAL = {
   _maybeEnable() {
     if (this.gapiReady && this.gisReady) {
       document.getElementById('gcal-connect-btn').disabled = false;
+      // iOS リダイレクト認証の戻り処理（URLハッシュにトークンがあれば適用）
+      this._checkOAuthRedirect();
     }
+  },
+
+  // iOS Safari 判定
+  _isIOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  },
+
+  // iOS: ページごとリダイレクトする implicit flow
+  // 戻り先 redirect_uri はGoogle Cloud Console の「承認済みリダイレクトURI」に要登録:
+  //   https://mir-tes.github.io/teacher-scheduler/
+  _connectViaRedirect() {
+    const redirectUri = 'https://mir-tes.github.io/teacher-scheduler/';
+    const params = new URLSearchParams({
+      client_id:             this.CLIENT_ID,
+      redirect_uri:          redirectUri,
+      response_type:         'token',
+      scope:                 this.SCOPES_MAIN,
+      prompt:                'consent',
+      include_granted_scopes:'true'
+    });
+    location.href = 'https://accounts.google.com/o/oauth2/auth?' + params;
+  },
+
+  // リダイレクト戻り時：URLハッシュから access_token を取得して接続処理
+  _checkOAuthRedirect() {
+    if (!location.hash) return;
+    const params = new URLSearchParams(location.hash.slice(1));
+    // エラーの場合
+    const error = params.get('error');
+    if (error) {
+      history.replaceState(null, '', location.pathname);
+      alert('Google認証エラー: ' + error + '\nGoogle Cloud ConsoleでリダイレクトURIが登録されているか確認してください。');
+      return;
+    }
+    const token = params.get('access_token');
+    if (!token) return;
+    // URLからハッシュを除去（ブラウザ履歴にトークンを残さない）
+    history.replaceState(null, '', location.pathname);
+    this.accessToken = token;
+    gapi.client.setToken({ access_token: token });
+    this.isConnected = true;
+    this.updateStatus('接続中');
+    this._tryDriveSilent();
   },
 
   // ---- 接続 / 切断 ----
   connect() {
     if (!this.gisReady || !this.tokenClient) {
       alert('Google APIの初期化中です。しばらくお待ちください。');
+      return;
+    }
+    if (this._isIOS()) {
+      // iOS Safari はポップアップのpostMessageを遮断するためリダイレクト方式を使用
+      this._connectViaRedirect();
       return;
     }
     const token = gapi.client.getToken();
